@@ -58,6 +58,7 @@ class FileBrowser {
         this.bindEvents();
         this.loadStateFromURL();
         this.loadEntries();
+        this.loadCopies();
     }
 
     bindEvents() {
@@ -403,7 +404,7 @@ class FileBrowser {
             const isActionable = this.isActionableEntry(entry);
             const canOpen = entry.is_dir || isActionable;
 
-            const entryId = entry.info_hash || entry.path;
+            const entryId = entry.path;
             const isChecked = this.state.selectedEntries.has(entryId);
             const actionMenu = isActionable ? `
                 <div class="dropdown dropdown-end">
@@ -411,7 +412,7 @@ class FileBrowser {
                         <i class="bi bi-three-dots-vertical" aria-hidden="true"></i>
                     </button>
                     <ul tabindex="0" class="dropdown-content menu p-2 shadow bg-base-200 rounded-box w-56 z-50" aria-label="Actions">
-                        ${!entry.is_dir ? `<li><button type="button" onclick="window.fileBrowser.downloadFile('${this.escapeJs(entry.path)}', '${this.escapeJs(entry.name)}')"><i class="bi bi-download" aria-hidden="true"></i> Download</button></li>` : ''}
+                        ${this.canCopy(entry) ? `<li><button type="button" onclick="window.fileBrowser.copyPaths(['${this.escapeJs(entry.path)}'])"><i class="bi bi-download" aria-hidden="true"></i> Download to folder</button></li>` : ''}
                         ${entry.kind === 'entry' ? `<li><button type="button" onclick="window.fileBrowser.recheckEntry('${this.escapeJs(entry.name)}')"><i class="bi bi-search-heart" aria-hidden="true"></i> Recheck health</button></li>` : ''}
                         ${entry.can_delete ? `<li><button type="button" onclick="window.fileBrowser.deleteTorrent('${this.escapeJs(entry.info_hash)}', '${this.escapeJs(entry.name)}')" class="text-error"><i class="bi bi-trash" aria-hidden="true"></i> Delete original item</button></li>` : ''}
                     </ul>
@@ -572,9 +573,9 @@ class FileBrowser {
         this.refs.contextMenu.classList.remove('hidden');
 
         // Show/hide appropriate menu items
-        if (!entry.is_dir) {
+        if (this.canCopy(entry)) {
             this.refs.contextDownload.classList.remove('hidden');
-            this.refs.contextDownload.onclick = () => this.downloadFile(entry.path, entry.name);
+            this.refs.contextDownload.onclick = () => this.copyPaths([entry.path]);
         } else {
             this.refs.contextDownload.classList.add('hidden');
         }
@@ -680,13 +681,13 @@ class FileBrowser {
     handleSelectAll(checked) {
         if (checked) {
             this.state.entries.filter(entry => this.isActionableEntry(entry)).forEach(entry => {
-                const entryId = entry.info_hash || entry.path;
+                const entryId = entry.path;
                 this.state.selectedEntries.add(entryId);
                 this.state.selectedEntryData.set(entryId, entry);
             });
         } else {
             this.state.entries.forEach(entry => {
-                const entryId = entry.info_hash || entry.path;
+                const entryId = entry.path;
                 this.state.selectedEntries.delete(entryId);
                 this.state.selectedEntryData.delete(entryId);
             });
@@ -722,7 +723,7 @@ class FileBrowser {
             const actionableEntries = this.state.entries.filter(entry => this.isActionableEntry(entry));
             const allSelected = actionableEntries.length > 0 &&
                 actionableEntries.every(entry => {
-                    const entryId = entry.info_hash || entry.path;
+                    const entryId = entry.path;
                     return this.state.selectedEntries.has(entryId);
                 });
             this.refs.selectAllCheckbox.checked = allSelected;
@@ -741,19 +742,114 @@ class FileBrowser {
     }
 
     bulkDownload() {
-        const selectedEntries = this.getSelectedEntries();
-        const files = selectedEntries.filter(e => !e.is_dir);
-
-        if (files.length === 0) {
-            window.decypharrUtils.createToast('No files selected for download', 'warning');
+        const entries = this.getSelectedEntries().filter(e => this.canCopy(e));
+        if (entries.length === 0) {
+            window.decypharrUtils.createToast('Select files or folders to download', 'warning');
             return;
         }
+        this.copyEntries(entries);
+    }
 
-        files.forEach(entry => {
-            this.downloadFile(entry.path, entry.name);
+    // Files and whole library items can be downloaded; library views can't.
+    canCopy(entry) {
+        return Boolean(entry) && (entry.kind === 'entry' || !entry.is_dir);
+    }
+
+    copyPaths(paths) {
+        this.hideContextMenu();
+        const entries = paths.map(p => this.state.entries.find(e => e.path === p)).filter(Boolean);
+        this.copyEntries(entries);
+    }
+
+    // Groups entries by library item: a folder means the whole item, files only those files.
+    copyEntries(entries) {
+        const items = new Map();
+        entries.forEach(entry => {
+            if (entry.is_dir) {
+                items.set(entry.name, []);
+                return;
+            }
+            const parts = entry.path.split('/').filter(Boolean);
+            const name = parts[parts.length - 2];
+            const files = items.get(name);
+            if (files === undefined) items.set(name, [entry.name]);
+            else if (files.length > 0) files.push(entry.name);
         });
+        if (items.size === 0) return;
 
-        window.decypharrUtils.createToast(`Downloading ${files.length} file(s)`, 'success');
+        const dialog = document.getElementById('copyDialog');
+        const input = document.getElementById('copyFolderInput');
+        document.getElementById('copyDialogSummary').textContent =
+            `${entries.length} selected item(s) will be saved under the folder below, each in its own subfolder.`;
+        document.getElementById('copyDialogConfirm').onclick = async () => {
+            dialog.close();
+            await this.startCopy(input.value.trim(), [...items].map(([name, files]) => ({name, files})));
+        };
+        dialog.showModal();
+        input.focus();
+    }
+
+    async startCopy(folder, items) {
+        try {
+            const response = await window.decypharrUtils.fetcher('/api/browse/copy', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({folder, items})
+            });
+            const result = await response.json();
+            (result.errors || []).forEach(err => window.decypharrUtils.createToast(err, 'error'));
+            const started = result.started || [];
+            if (started.length > 0) {
+                window.decypharrUtils.createToast(`Downloading ${started.length} item(s) to ${started[0].path.replace(/\/[^/]*$/, '')}`, 'success');
+                this.clearSelection();
+            }
+        } catch (error) {
+            window.decypharrUtils.createToast(`Download failed: ${error.message}`, 'error');
+        }
+        this.loadCopies();
+    }
+
+    async loadCopies() {
+        clearTimeout(this.copiesTimer);
+        let copies = [];
+        try {
+            const response = await window.decypharrUtils.fetcher('/api/browse/copies');
+            if (response.ok) copies = await response.json();
+        } catch (_) {
+            // try again on the next poll
+        }
+        this.renderCopies(copies || []);
+        if (copies.some(c => c.status === 'downloading')) {
+            this.copiesTimer = setTimeout(() => this.loadCopies(), 2000);
+        }
+    }
+
+    renderCopies(copies) {
+        const card = document.getElementById('copiesCard');
+        if (!card) return;
+        card.classList.toggle('hidden', copies.length === 0);
+        const fmt = b => window.decypharrUtils.formatBytes(b || 0);
+        document.getElementById('copiesList').innerHTML = copies.map(c => {
+            const percent = c.size > 0 ? Math.floor(c.downloaded / c.size * 1000) / 10 : 0;
+            const badge = {
+                downloading: '<span class="badge badge-info badge-sm">Downloading to device</span>',
+                completed: '<span class="badge badge-success badge-sm">Completed</span>',
+                error: '<span class="badge badge-error badge-sm">Error</span>'
+            }[c.status] || '';
+            return `
+                <li class="flex flex-col gap-1 py-2 border-b border-base-300 last:border-0">
+                    <div class="flex flex-wrap items-center justify-between gap-2">
+                        <span class="font-medium break-all">${this.escapeHtml(c.name)}</span>
+                        ${badge}
+                    </div>
+                    <span class="text-xs font-mono opacity-70 break-all"><i class="bi bi-folder2 mr-1" aria-hidden="true"></i>${this.escapeHtml(c.path)}</span>
+                    <div class="flex items-center gap-2 text-xs">
+                        <progress class="progress progress-info w-40" value="${percent}" max="100"></progress>
+                        <span>${percent}% · ${fmt(c.downloaded)} / ${fmt(c.size)} · ${c.files} file(s)${c.status === 'downloading' ? ` · ${fmt(c.speed)}/s` : ''}</span>
+                    </div>
+                    ${c.error ? `<span class="text-xs text-error break-all">${this.escapeHtml(c.error)}</span>` : ''}
+                </li>`;
+        }).join('');
     }
 
     async bulkDelete() {

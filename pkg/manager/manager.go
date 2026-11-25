@@ -86,6 +86,7 @@ type Manager struct {
 	rootInfo   *FileInfo
 	entry      *EntryCache
 	downloader *Downloader
+	copies     copyTransfers
 	usenet     *usenet.Usenet
 
 	// Debrid speed test results storage

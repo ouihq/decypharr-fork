@@ -74,6 +74,14 @@
         </div>
     </div>
 
+    <!-- Device downloads started from this page -->
+    <div id="copiesCard" class="card bg-base-100 shadow-xl hidden">
+        <div class="card-body px-4 py-3 sm:px-6">
+            <h2 class="card-title text-base"><i class="bi bi-hdd" aria-hidden="true"></i> Downloads to this device</h2>
+            <ul id="copiesList"></ul>
+        </div>
+    </div>
+
     <!-- File Browser Table -->
     <div class="card bg-base-100 shadow-xl">
         <div class="card-body p-0">
@@ -155,6 +163,20 @@
         </div>
     </div>
 </div>
+
+<dialog id="copyDialog" class="modal">
+    <div class="modal-box">
+        <h3 class="font-bold text-lg">Download to folder</h3>
+        <p class="text-sm opacity-70 py-2" id="copyDialogSummary"></p>
+        <label class="label" for="copyFolderInput"><span>Folder on the server</span></label>
+        <input type="text" class="input w-full font-mono" id="copyFolderInput" value="{{ .downloadFolder }}" placeholder="/data/downloads">
+        <div class="modal-action">
+            <form method="dialog"><button class="btn btn-ghost">Cancel</button></form>
+            <button type="button" class="btn btn-primary" id="copyDialogConfirm"><i class="bi bi-download" aria-hidden="true"></i> Download</button>
+        </div>
+    </div>
+    <form method="dialog" class="modal-backdrop"><button>close</button></form>
+</dialog>
 
 <!-- Context Menu -->
 <div id="contextMenu" class="dropdown dropdown-open hidden absolute z-50">

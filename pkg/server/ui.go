@@ -237,10 +237,11 @@ func (s *Server) StatsHandler(w http.ResponseWriter, r *http.Request) {
 func (s *Server) BrowseHandler(w http.ResponseWriter, r *http.Request) {
 	cfg := config.Get()
 	data := map[string]any{
-		"URLBase":    cfg.URLBase,
-		"Page":       "browse",
-		"Title":      "Browse Torrents",
-		"SetupError": cfg.SetupError(),
+		"URLBase":        cfg.URLBase,
+		"Page":           "browse",
+		"Title":          "Browse Torrents",
+		"SetupError":     cfg.SetupError(),
+		"downloadFolder": cfg.DownloadFolder,
 	}
 	err := s.templates.ExecuteTemplate(w, "layout", data)
 	if err != nil {

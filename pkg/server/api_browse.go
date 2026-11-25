@@ -1,6 +1,7 @@
 package server
 
 import (
+	"cmp"
 	"fmt"
 	"net/http"
 	"path/filepath"
@@ -425,4 +426,46 @@ func (s *Server) handleUsenetDownload(w http.ResponseWriter, r *http.Request, en
 		s.logger.Error().Err(err).Msg("Download failed")
 		// Can't send HTTP error after headers are sent
 	}
+}
+
+type copyRequest struct {
+	Folder string `json:"folder"`
+	Items  []struct {
+		Name  string   `json:"name"`
+		Files []string `json:"files"` // empty means the whole item
+	} `json:"items"`
+}
+
+// handleCopyToFolder downloads library items to a folder on this device.
+func (s *Server) handleCopyToFolder(w http.ResponseWriter, r *http.Request) {
+	var req copyRequest
+	if err := json.ConfigDefault.NewDecoder(r.Body).Decode(&req); err != nil {
+		s.sendJSONError(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+	folder := cmp.Or(strings.TrimSpace(req.Folder), config.Get().DownloadFolder)
+	if len(req.Items) == 0 {
+		s.sendJSONError(w, "nothing selected", http.StatusBadRequest)
+		return
+	}
+
+	started := make([]*manager.CopyTransfer, 0, len(req.Items))
+	var errs []string
+	for _, item := range req.Items {
+		t, err := s.manager.CopyToFolder(item.Name, item.Files, folder)
+		if err != nil {
+			errs = append(errs, fmt.Sprintf("%s: %v", item.Name, err))
+			continue
+		}
+		started = append(started, t)
+	}
+	status := http.StatusOK
+	if len(started) == 0 {
+		status = http.StatusBadRequest
+	}
+	utils.JSONResponse(w, map[string]any{"started": started, "errors": errs}, status)
+}
+
+func (s *Server) handleCopyTransfers(w http.ResponseWriter, r *http.Request) {
+	utils.JSONResponse(w, s.manager.CopyTransfers(), http.StatusOK)
 }

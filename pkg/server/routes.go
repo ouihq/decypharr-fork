@@ -93,6 +93,8 @@ func (s *Server) WebRoutes() http.Handler {
 
 				// File download
 				r.Get("/download/{torrent}/{file}", s.handleDownloadFile)
+				r.Post("/copy", s.handleCopyToFolder)
+				r.Get("/copies", s.handleCopyTransfers)
 			})
 
 			// STRM reconciler
