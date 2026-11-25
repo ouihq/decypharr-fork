@@ -87,6 +87,9 @@ func (c *Config) applyEnvOverrides() {
 	if val := getEnv("MAX_FILE_SIZE"); val != "" {
 		c.MaxFileSize = val
 	}
+	if val := getEnv("DOWNLOAD_SPEED_LIMIT"); val != "" {
+		c.DownloadSpeedLimit = val
+	}
 	if val := getEnv("REMOVE_STALLED_AFTER"); val != "" {
 		c.RemoveStalledAfter = val
 	}

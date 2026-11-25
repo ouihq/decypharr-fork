@@ -23,11 +23,13 @@ import (
 	"github.com/sirrobot01/decypharr/pkg/notifications"
 	"github.com/sirrobot01/decypharr/pkg/storage"
 	"github.com/sourcegraph/conc/pool"
+	"golang.org/x/time/rate"
 )
 
 type Downloader struct {
 	manager *Manager
 	logger  zerolog.Logger
+	limiter *rate.Limiter // shared by all local downloads, so the limit is a total
 }
 
 const (
@@ -41,6 +43,7 @@ const (
 	symlinkLogSampleSize        = 8
 	localDownloadMaxAttempts    = 4
 	defaultFileDownloadWorkers  = 5
+	localDownloadBufferSize     = 1 << 20
 )
 
 type downloadLogMeta struct {
@@ -60,7 +63,20 @@ func NewDownloadManager(manager *Manager) *Downloader {
 	return &Downloader{
 		manager: manager,
 		logger:  manager.logger.With().Str("component", "downloader").Logger(),
+		limiter: rate.NewLimiter(rate.Inf, 0),
 	}
+}
+
+// rateLimiter returns the shared limiter set to the current download_speed_limit, or nil when there is none.
+func (d *Downloader) rateLimiter() grab.RateLimiter {
+	limit, err := config.ParseSize(config.Get().DownloadSpeedLimit)
+	if err != nil || limit <= 0 || d.limiter == nil {
+		return nil
+	}
+	d.limiter.SetLimit(rate.Limit(limit))
+	// grab waits for a whole read buffer at once, so the burst must fit one
+	d.limiter.SetBurst(max(int(limit), localDownloadBufferSize))
+	return d.limiter
 }
 
 func (d *Downloader) download(ctx context.Context, torrent *storage.Entry) error {
@@ -760,7 +776,8 @@ func (d *Downloader) localDownloadAttempt(ctx context.Context, downloadURL, file
 		return err
 	}
 	req = req.WithContext(ctx)
-	req.BufferSize = 1 << 20
+	req.BufferSize = localDownloadBufferSize
+	req.RateLimiter = d.rateLimiter()
 	req.HTTPRequest.Header.Set("User-Agent", "Decypharr[QBitTorrent]")
 	req.HTTPRequest.Header.Set("Accept", "*/*")
 	req.HTTPRequest.Header.Set("Accept-Encoding", "identity")
@@ -772,7 +789,7 @@ func (d *Downloader) localDownloadAttempt(ctx context.Context, downloadURL, file
 	}
 
 	client := grab.NewClient()
-	client.BufferSize = 1 << 20
+	client.BufferSize = localDownloadBufferSize
 	client.HTTPClient = d.manager.streamClient
 
 	resp := client.Do(req)

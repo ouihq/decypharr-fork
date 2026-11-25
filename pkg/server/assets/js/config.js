@@ -302,7 +302,7 @@ class ConfigManager {
     populateDownloadSettings(config) {
         const fields = [
             'remove_stalled_after', 'nzb_user_agent', 'download_folder',
-            'refresh_interval', 'max_active_downloads', 'skip_pre_cache',
+            'refresh_interval', 'max_active_downloads', 'download_speed_limit', 'skip_pre_cache',
             'always_rm_tracker_urls', 'default_download_action'
         ];
 
@@ -1445,6 +1445,7 @@ class ConfigManager {
             refresh_interval: document.querySelector('[name="refresh_interval"]').value || "30s",
             default_download_action: document.querySelector('[name="default_download_action"]')?.value || "symlink",
             max_active_downloads: parseInt(document.querySelector('[name="max_active_downloads"]').value) || 5,
+            download_speed_limit: document.querySelector('[name="download_speed_limit"]').value.trim(),
             skip_pre_cache: document.querySelector('[name="skip_pre_cache"]').checked,
             always_rm_tracker_urls: document.querySelector('[name="always_rm_tracker_urls"]').checked,
             folder_naming: document.querySelector('[name="folder_naming"]')?.value || "",
