@@ -290,6 +290,7 @@ class TorrentDashboard {
                             <span class="font-medium">${this.escapeHtml(torrent.name)}</span>
                             <span class="text-xs text-base-content/60 font-mono">${torrent.info_hash.substring(0, 8)}...</span>
                             ${torrent.content_path ? `<span class="text-xs text-base-content/60 font-mono break-all" title="${this.escapeAttr(torrent.content_path)}"><i class="bi bi-folder2 mr-1" aria-hidden="true"></i>${this.escapeHtml(torrent.content_path)}</span>` : ''}
+                            ${torrent.state === 'error' && torrent.last_error ? `<span class="text-xs text-error break-all"><i class="bi bi-exclamation-triangle mr-1" aria-hidden="true"></i>${this.escapeHtml(torrent.last_error)}</span>` : ''}
                         </div>
                     </td>
                     <td>
