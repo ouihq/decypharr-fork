@@ -218,9 +218,14 @@ class TorrentDashboard {
                 params.set('state', this.state.selectedState);
             }
 
-            const response = await window.decypharrUtils.fetcher(`/api/torrents?${params}`);
+            const [response, deviceResponse] = await Promise.all([
+                window.decypharrUtils.fetcher(`/api/torrents?${params}`),
+                window.decypharrUtils.fetcher('/api/device-queue').catch(() => null)
+            ]);
             if (!response.ok) throw new Error('Failed to fetch items');
 
+            const deviceQueue = deviceResponse?.ok ? await deviceResponse.json() : [];
+            this.state.deviceQueue = new Map((deviceQueue || []).map(item => [item.key, item]));
             const data = await response.json();
             this.state.torrents = data.torrents || [];
             this.state.total = data.total || 0;
@@ -317,7 +322,8 @@ class TorrentDashboard {
                     <td>
                         ${this.renderStateBadge(torrent)}
                     </td>
-                    <td>
+                    <td class="whitespace-nowrap">
+                        ${this.state.deviceQueue?.has(torrent.info_hash) ? window.decypharrUtils.deviceQueueButtons(this.state.deviceQueue.get(torrent.info_hash), 'window.dashboard.deviceAction') : ''}
                         <button class="btn btn-ghost btn-xs text-error"
                                 title="Delete Torrent"
                                 onclick="window.dashboard.deleteTorrent('${torrent.info_hash}', '${this.escapeAttr(torrent.category || '')}', false);">
@@ -355,8 +361,20 @@ class TorrentDashboard {
         return torrent.state === 'downloading' && !torrent.is_downloading && torrent.status !== 'downloaded';
     }
 
+    async deviceAction(key, action) {
+        await window.decypharrUtils.deviceQueueAction(key, action);
+        this.loadTorrents();
+    }
+
     renderStateBadge(torrent) {
         const state = torrent.state;
+        const queued = this.state.deviceQueue?.get(torrent.info_hash);
+        if (queued?.status === 'paused') {
+            return '<span class="badge badge-warning badge-sm">Paused</span>';
+        }
+        if (queued?.status === 'waiting') {
+            return `<span class="badge badge-ghost badge-sm">Waiting for device (#${queued.position})</span>`;
+        }
         if (state === 'downloading') {
             if (torrent.is_downloading) {
                 const text = torrent.action === 'download' ? 'Downloading to device' : 'Linking to device';

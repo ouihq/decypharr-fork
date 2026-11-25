@@ -1,6 +1,7 @@
 package manager
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -65,9 +66,24 @@ func (c *copyTransfers) snapshot() []CopyTransfer {
 }
 
 // CopyTransfers lists device downloads started from the browser, newest first.
+// Unfinished ones report their queue state: downloading, waiting or paused.
 func (m *Manager) CopyTransfers() []CopyTransfer {
-	return m.copies.snapshot()
+	list := m.copies.snapshot()
+	for i := range list {
+		if list[i].Status != "downloading" {
+			continue
+		}
+		switch m.downloader.queue.status(copyQueueKey(list[i].ID)) {
+		case "waiting":
+			list[i].Status = "waiting"
+		case "paused":
+			list[i].Status = "paused"
+		}
+	}
+	return list
 }
+
+func copyQueueKey(id string) string { return "copy:" + id }
 
 // CopyToFolder downloads files of a library item into folder/<item name> in the
 // background. No file names means the whole item.
@@ -120,13 +136,16 @@ func (m *Manager) CopyToFolder(itemName string, fileNames []string, folder strin
 
 func (m *Manager) runCopy(t *CopyTransfer, files []*storage.File) {
 	d := m.downloader
-	ctx := d.operationContext()
-	var err error
-	for _, f := range files {
-		if err = m.copyFile(t, f); err != nil || ctx.Err() != nil {
-			break
+	err := d.queue.run(d.operationContext(), copyQueueKey(t.ID), t.Name, func(ctx context.Context) error {
+		// A resumed run counts the partial files again from the start.
+		m.copies.update(func() { t.Downloaded, t.Speed = 0, 0 })
+		for _, f := range files {
+			if err := m.copyFile(ctx, t, f); err != nil {
+				return err
+			}
 		}
-	}
+		return nil
+	})
 	m.copies.update(func() {
 		t.Speed = 0
 		if err != nil {
@@ -142,9 +161,8 @@ func (m *Manager) runCopy(t *CopyTransfer, files []*storage.File) {
 	}
 }
 
-func (m *Manager) copyFile(t *CopyTransfer, f *storage.File) error {
+func (m *Manager) copyFile(ctx context.Context, t *CopyTransfer, f *storage.File) error {
 	d := m.downloader
-	ctx := d.operationContext()
 	dest := filepath.Join(t.Path, f.Name)
 
 	entry, err := m.GetEntry(f.InfoHash)

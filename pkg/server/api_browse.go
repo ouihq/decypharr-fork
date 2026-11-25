@@ -469,3 +469,23 @@ func (s *Server) handleCopyToFolder(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleCopyTransfers(w http.ResponseWriter, r *http.Request) {
 	utils.JSONResponse(w, s.manager.CopyTransfers(), http.StatusOK)
 }
+
+func (s *Server) handleDeviceQueue(w http.ResponseWriter, r *http.Request) {
+	utils.JSONResponse(w, s.manager.DeviceQueue(), http.StatusOK)
+}
+
+// handleDeviceQueueAction pauses, resumes or moves a download to this device.
+func (s *Server) handleDeviceQueueAction(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Key string `json:"key"`
+	}
+	if err := json.ConfigDefault.NewDecoder(r.Body).Decode(&req); err != nil || req.Key == "" {
+		s.sendJSONError(w, "key is required", http.StatusBadRequest)
+		return
+	}
+	if !s.manager.DeviceQueueAction(req.Key, chi.URLParam(r, "action")) {
+		s.sendJSONError(w, "download not found or unknown action", http.StatusNotFound)
+		return
+	}
+	utils.JSONResponse(w, s.manager.DeviceQueue(), http.StatusOK)
+}

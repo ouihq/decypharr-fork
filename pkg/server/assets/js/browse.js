@@ -813,6 +813,11 @@ class FileBrowser {
         this.loadCopies();
     }
 
+    async copyAction(key, action) {
+        await window.decypharrUtils.deviceQueueAction(key, action);
+        this.loadCopies();
+    }
+
     async loadCopies() {
         clearTimeout(this.copiesTimer);
         let copies = [];
@@ -823,7 +828,7 @@ class FileBrowser {
             // try again on the next poll
         }
         this.renderCopies(copies || []);
-        if (copies.some(c => c.status === 'downloading')) {
+        if (copies.some(c => ['downloading', 'waiting', 'paused'].includes(c.status))) {
             this.copiesTimer = setTimeout(() => this.loadCopies(), 2000);
         }
     }
@@ -837,6 +842,8 @@ class FileBrowser {
             const percent = c.size > 0 ? Math.floor(c.downloaded / c.size * 1000) / 10 : 0;
             const badge = {
                 downloading: '<span class="badge badge-info badge-sm">Downloading to device</span>',
+                waiting: '<span class="badge badge-ghost badge-sm">Waiting for device</span>',
+                paused: '<span class="badge badge-warning badge-sm">Paused</span>',
                 completed: '<span class="badge badge-success badge-sm">Completed</span>',
                 error: '<span class="badge badge-error badge-sm">Error</span>'
             }[c.status] || '';
@@ -844,7 +851,10 @@ class FileBrowser {
                 <li class="flex flex-col gap-1 py-2 border-b border-base-300 last:border-0">
                     <div class="flex flex-wrap items-center justify-between gap-2">
                         <span class="font-medium break-all">${this.escapeHtml(c.name)}</span>
-                        ${badge}
+                        <span class="flex items-center gap-1">
+                            ${['downloading', 'waiting', 'paused'].includes(c.status) ? window.decypharrUtils.deviceQueueButtons({key: `copy:${c.id}`, status: c.status}, 'window.fileBrowser.copyAction') : ''}
+                            ${badge}
+                        </span>
                     </div>
                     <span class="text-xs font-mono opacity-70 break-all"><i class="bi bi-folder2 mr-1" aria-hidden="true"></i>${this.escapeHtml(c.path)}</span>
                     <div class="flex items-center gap-2 text-xs">

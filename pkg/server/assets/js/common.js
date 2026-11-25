@@ -588,6 +588,29 @@ class DecypharrUtils {
         });
     }
 
+    // Pause, resume or move a download to this device (pause, resume, up, down, top).
+    async deviceQueueAction(key, action) {
+        const response = await this.fetcher(`/api/device-queue/${action}`, {
+            method: 'POST',
+            body: JSON.stringify({key})
+        });
+        if (!response.ok) {
+            this.createToast('That download is no longer in the queue', 'warning');
+        }
+    }
+
+    // Buttons for an item in the device queue; onAction is a JS expression taking (key, action).
+    deviceQueueButtons(item, onAction) {
+        const btn = (action, icon, title) =>
+            `<button class="btn btn-ghost btn-xs" title="${title}" aria-label="${title}" onclick="${onAction}('${item.key}', '${action}')"><i class="bi ${icon}" aria-hidden="true"></i></button>`;
+        return [
+            item.status === 'paused' ? btn('resume', 'bi-play-fill', 'Resume') : btn('pause', 'bi-pause-fill', 'Pause'),
+            btn('top', 'bi-chevron-double-up', 'Move to top'),
+            btn('up', 'bi-chevron-up', 'Move up'),
+            btn('down', 'bi-chevron-down', 'Move down')
+        ].join('');
+    }
+
     // Utility methods
     formatBytes(bytes) {
         if (!bytes || bytes === 0) return '0 B';

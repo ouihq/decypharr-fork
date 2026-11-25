@@ -30,6 +30,7 @@ type Downloader struct {
 	manager *Manager
 	logger  zerolog.Logger
 	limiter *rate.Limiter // shared by all local downloads, so the limit is a total
+	queue   deviceQueue
 }
 
 const (
@@ -479,11 +480,19 @@ func limitedStringSample(values []string, limit int) []string {
 // For torrents: uses HTTP download from debrid
 // For NZBs: uses parallel NNTP segment download
 func (d *Downloader) processDownload(ctx context.Context, entry *storage.Entry) error {
-	// Check if this is a usenet entry
-	if entry.IsNZB() {
-		return d.processUsenetDownload(ctx, entry)
-	}
-	return d.processTorrentDownload(ctx, entry)
+	return d.queue.run(ctx, entry.InfoHash, entry.Name, func(ctx context.Context) error {
+		var err error
+		if entry.IsNZB() {
+			err = d.processUsenetDownload(ctx, entry)
+		} else {
+			err = d.processTorrentDownload(ctx, entry)
+		}
+		if errors.Is(context.Cause(ctx), errDevicePaused) {
+			entry.Speed = 0
+			_ = d.manager.queue.Update(entry)
+		}
+		return err
+	})
 }
 
 // processTorrentDownload downloads files from debrid via HTTP
