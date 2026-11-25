@@ -47,6 +47,7 @@ class TorrentDashboard {
         // Refresh button
         this.refs.refreshBtn.addEventListener('click', () => this.loadTorrents());
         document.getElementById('speedLimitForm')?.addEventListener('submit', (e) => this.setSpeedLimit(e));
+        this.showSpeedLimit(document.getElementById('speedLimitForm')?.dataset.limit);
 
         // Batch delete
         this.refs.batchDeleteBtn.addEventListener('click', () => this.deleteSelectedTorrents());
@@ -365,17 +366,32 @@ class TorrentDashboard {
     async setSpeedLimit(event) {
         event.preventDefault();
         const input = document.getElementById('speedLimitInput');
+        const value = input.value.trim().replace(',', '.');
+        if (value !== '' && !(Number(value) > 0)) {
+            window.decypharrUtils.createToast('Enter a number like 20 or 2,5', 'error');
+            return;
+        }
+        const limit = value === '' ? '' : value + document.getElementById('speedLimitUnit').value;
         const response = await window.decypharrUtils.fetcher('/api/download-speed-limit', {
             method: 'POST',
-            body: JSON.stringify({limit: input.value})
+            body: JSON.stringify({limit})
         });
         const result = await response.json().catch(() => ({}));
         if (!response.ok) {
             window.decypharrUtils.createToast(result.error || result.message || 'Could not set the speed limit', 'error');
             return;
         }
-        input.value = result.limit;
-        window.decypharrUtils.createToast(result.limit ? `Speed limit set to ${result.limit}/s` : 'Speed limit removed', 'success');
+        this.showSpeedLimit(result.limit);
+        window.decypharrUtils.createToast(result.limit ? `Speed limit set to ${input.value} ${document.getElementById('speedLimitUnit').value}/s` : 'Speed limit removed', 'success');
+    }
+
+    // Splits a saved limit like "2.5MB" into the number field and unit dropdown.
+    showSpeedLimit(limit) {
+        const match = /^\s*([\d.,]+)\s*([KMG])?B?\s*$/i.exec(limit || '');
+        const input = document.getElementById('speedLimitInput');
+        if (!input) return;
+        input.value = match ? match[1].replace('.', ',') : (limit || '');
+        document.getElementById('speedLimitUnit').value = match && match[2] ? match[2].toUpperCase() + 'B' : 'MB';
     }
 
     async deviceAction(key, action) {

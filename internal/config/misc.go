@@ -120,7 +120,8 @@ func getDefaultExtensions() []string {
 }
 
 func ParseSize(sizeStr string) (int64, error) {
-	sizeStr = strings.ToUpper(strings.TrimSpace(sizeStr))
+	// Accept a decimal comma too, e.g. "2,5MB".
+	sizeStr = strings.ReplaceAll(strings.ToUpper(strings.TrimSpace(sizeStr)), ",", ".")
 
 	// Absolute size-based cache. Order matters: two-letter units must be
 	// checked before the bare "B" suffix. ParseFloat below means decimal

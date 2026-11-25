@@ -29,3 +29,9 @@ func TestFileFilterFor(t *testing.T) {
 		t.Fatal("manual filter should skip types but keep sizes")
 	}
 }
+
+func TestParseSizeDecimalComma(t *testing.T) {
+	if got, err := ParseSize("2,5MB"); err != nil || got != 2.5*1024*1024 {
+		t.Fatalf("ParseSize(2,5MB) = %d, %v", got, err)
+	}
+}

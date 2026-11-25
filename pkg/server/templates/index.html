@@ -29,14 +29,19 @@
                         <i class="bi bi-arrow-clockwise"></i>
                         <span class="hidden sm:inline">Refresh</span>
                     </button>
-                    <form class="join" id="speedLimitForm" title="Total speed for downloads to this device. Empty means no limit.">
-                        <label class="join-item btn btn-sm btn-ghost no-animation pointer-events-none" for="speedLimitInput">
-                            <i class="bi bi-speedometer" aria-hidden="true"></i>
-                            <span class="hidden sm:inline">Speed limit</span>
+                    <form class="join" id="speedLimitForm" data-limit="{{ .DownloadSpeedLimit }}"
+                          title="Total speed for downloads to this device. Empty means no limit.">
+                        <label class="input input-sm join-item w-40">
+                            <i class="bi bi-speedometer opacity-60" aria-hidden="true"></i>
+                            <input type="text" inputmode="decimal" class="grow" id="speedLimitInput"
+                                   placeholder="No limit" aria-label="Download speed limit">
                         </label>
-                        <input type="text" class="input input-sm join-item w-28" id="speedLimitInput"
-                               value="{{ .DownloadSpeedLimit }}" placeholder="No limit" aria-label="Download speed limit, e.g. 20MB">
-                        <button type="submit" class="btn btn-sm join-item">Set</button>
+                        <select class="select select-sm join-item w-24" id="speedLimitUnit" aria-label="Speed limit unit">
+                            <option value="KB">KB/s</option>
+                            <option value="MB" selected>MB/s</option>
+                            <option value="GB">GB/s</option>
+                        </select>
+                        <button type="submit" class="btn btn-outline btn-sm join-item">Set</button>
                     </form>
                 </div>
 
