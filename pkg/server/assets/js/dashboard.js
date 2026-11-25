@@ -289,6 +289,7 @@ class TorrentDashboard {
                         <div class="flex flex-col">
                             <span class="font-medium">${this.escapeHtml(torrent.name)}</span>
                             <span class="text-xs text-base-content/60 font-mono">${torrent.info_hash.substring(0, 8)}...</span>
+                            ${torrent.content_path ? `<span class="text-xs text-base-content/60 font-mono break-all" title="${this.escapeAttr(torrent.content_path)}"><i class="bi bi-folder2 mr-1" aria-hidden="true"></i>${this.escapeHtml(torrent.content_path)}</span>` : ''}
                         </div>
                     </td>
                     <td>
@@ -310,10 +311,10 @@ class TorrentDashboard {
                         ${torrent.active_provider ? `<span class="badge badge-sm badge-primary">${this.escapeHtml(torrent.active_provider)}</span>` : '-'}
                     </td>
                     <td>
-                        <span class="text-sm">${torrent.num_seeds || 0}</span>
+                        <span class="text-sm">${this.isOnDebrid(torrent) ? (torrent.seeders || 0) : '-'}</span>
                     </td>
                     <td>
-                        ${this.renderStateBadge(torrent.state)}
+                        ${this.renderStateBadge(torrent)}
                     </td>
                     <td>
                         <button class="btn btn-ghost btn-xs text-error"
@@ -333,7 +334,8 @@ class TorrentDashboard {
     }
 
     renderProgressBar(progress) {
-        const percent = Math.round(progress * 100);
+        // one decimal so big local downloads don't sit at 0% for hours
+        const percent = Math.floor((progress || 0) * 1000) / 10;
         let color = 'progress-info';
         if (percent === 100) color = 'progress-success';
         else if (percent < 25) color = 'progress-error';
@@ -347,7 +349,23 @@ class TorrentDashboard {
         `;
     }
 
-    renderStateBadge(state) {
+    // Still being fetched by the debrid provider, not yet on this device.
+    isOnDebrid(torrent) {
+        return torrent.state === 'downloading' && !torrent.is_downloading && torrent.status !== 'downloaded';
+    }
+
+    renderStateBadge(torrent) {
+        const state = torrent.state;
+        if (state === 'downloading') {
+            if (torrent.is_downloading) {
+                const text = torrent.action === 'download' ? 'Downloading to device' : 'Linking to device';
+                return `<span class="badge badge-info badge-sm" title="Ready on ${this.escapeAttr(torrent.active_provider || 'debrid')}">${text}</span>`;
+            }
+            if (this.isOnDebrid(torrent)) {
+                return `<span class="badge badge-warning badge-sm">On ${this.escapeHtml(torrent.active_provider || 'debrid')}</span>`;
+            }
+        }
+
         const stateMap = {
             'pausedUP': {class: 'badge-success', text: 'Completed'},
             'downloading': {class: 'badge-info', text: 'Downloading'},
