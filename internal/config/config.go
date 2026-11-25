@@ -71,10 +71,16 @@ type Arr struct {
 	DownloadUncached *bool  `json:"download_uncached,omitempty"`
 	SelectedDebrid   string `json:"selected_debrid,omitempty"`
 	Source           string `json:"source,omitempty"` // The source of the arr, e.g. "auto", "config", "". Auto means it was automatically detected from the arr
+
+	// Empty values use the global settings.
+	AllowedExt  []string `json:"allowed_file_types,omitempty"`
+	MinFileSize string   `json:"min_file_size,omitempty"`
+	MaxFileSize string   `json:"max_file_size,omitempty"`
 }
 
 func (a Arr) IsZero() bool {
-	return a.Name == "" && a.Host == "" && a.Token == "" && !a.SkipRepair && a.DownloadUncached == nil && a.SelectedDebrid == "" && a.Source == ""
+	return a.Name == "" && a.Host == "" && a.Token == "" && !a.SkipRepair && a.DownloadUncached == nil && a.SelectedDebrid == "" && a.Source == "" &&
+		len(a.AllowedExt) == 0 && a.MinFileSize == "" && a.MaxFileSize == ""
 }
 
 // QueueCleanup is the global policy that drives CleanupQueue. It maps

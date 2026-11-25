@@ -1,11 +1,15 @@
 package types
 
 import (
+	"fmt"
 	"maps"
 	"os"
+	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
+	"github.com/sirrobot01/decypharr/internal/config"
 	"github.com/sirrobot01/decypharr/internal/utils"
 )
 
@@ -31,6 +35,8 @@ type Torrent struct {
 
 	SizeDownloaded   int64 `json:"-"` // This is used for local download
 	DownloadUncached bool  `json:"-"`
+
+	FileFilter *config.FileFilter `json:"-"` // nil uses the global rules
 
 	sync.Mutex
 }
@@ -66,6 +72,30 @@ func (t *Torrent) Copy() *Torrent {
 		Seeders:          t.Seeders,
 		Links:            append([]string{}, t.Links...),
 		Debrid:           t.Debrid,
+		FileFilter:       t.FileFilter,
+	}
+}
+
+// UniqueFileName keeps file names flat: the base name of path, with parent
+// folders put in front only when that name is already in files.
+func UniqueFileName(files map[string]File, path string) string {
+	parts := strings.Split(strings.Trim(path, "/"), "/")
+	name := parts[len(parts)-1]
+	for i := len(parts) - 2; ; i-- {
+		if _, taken := files[name]; !taken {
+			return name
+		}
+		if i < 0 {
+			break
+		}
+		name = parts[i] + " - " + name
+	}
+	ext := filepath.Ext(name)
+	for n := 2; ; n++ {
+		candidate := fmt.Sprintf("%s (%d)%s", strings.TrimSuffix(name, ext), n, ext)
+		if _, taken := files[candidate]; !taken {
+			return candidate
+		}
 	}
 }
 

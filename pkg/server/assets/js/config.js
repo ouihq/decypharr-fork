@@ -1148,7 +1148,9 @@ class ConfigManager {
         Object.entries(data).forEach(([key, value]) => {
             const input = document.querySelector(`[name="arr[${index}].${key}"]`);
             if (input) {
-                if (key === 'download_uncached' && input.tagName === 'SELECT') {
+                if (key === 'allowed_file_types' && Array.isArray(value)) {
+                    input.value = value.join(', ');
+                } else if (key === 'download_uncached' && input.tagName === 'SELECT') {
                     input.value = value === true ? 'true' : value === false ? 'false' : '';
                 } else if (input.type === 'checkbox') {
                     input.checked = value;
@@ -1251,6 +1253,31 @@ class ConfigManager {
                                 <option value="true">Allow for this Arr</option>
                                 <option value="false">Require cached for this Arr</option>
                             </select>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                            <label class="label" for="arr[${index}].allowed_file_types">
+                                <span class="font-medium">Allowed File Types</span>
+                            </label>
+                            <input type="text" class="input w-full" name="arr[${index}].allowed_file_types"
+                                   id="arr[${index}].allowed_file_types" placeholder="Uses global">
+                            <span class="text-sm opacity-70">Comma separated, e.g. mkv, mp4</span>
+                        </div>
+                        <div>
+                            <label class="label" for="arr[${index}].min_file_size">
+                                <span class="font-medium">Minimum File Size</span>
+                            </label>
+                            <input type="text" class="input w-full" name="arr[${index}].min_file_size"
+                                   id="arr[${index}].min_file_size" placeholder="Uses global">
+                        </div>
+                        <div>
+                            <label class="label" for="arr[${index}].max_file_size">
+                                <span class="font-medium">Maximum File Size</span>
+                            </label>
+                            <input type="text" class="input w-full" name="arr[${index}].max_file_size"
+                                   id="arr[${index}].max_file_size" placeholder="Uses global">
                         </div>
                     </div>
                 </div>
@@ -1627,7 +1654,11 @@ class ConfigManager {
                 token: tokenInput.value,
                 skip_repair: skipRepairInput.checked,
                 selected_debrid: selectedDebridInput.value,
-                source: sourceInput.value
+                source: sourceInput.value,
+                allowed_file_types: (getField('allowed_file_types')?.value || '')
+                    .split(',').map(ext => ext.trim()).filter(Boolean),
+                min_file_size: getField('min_file_size')?.value || '',
+                max_file_size: getField('max_file_size')?.value || ''
             };
 
             if (downloadUncachedInput.value !== '') {

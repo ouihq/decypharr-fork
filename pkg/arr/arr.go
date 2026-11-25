@@ -41,6 +41,20 @@ type Arr struct {
 	DownloadUncached *bool  `json:"download_uncached"`
 	SelectedDebrid   string `json:"selected_debrid,omitempty"`
 	Source           Source `json:"source,omitempty"`
+
+	AllowedExt  []string `json:"allowed_file_types,omitempty"`
+	MinFileSize string   `json:"min_file_size,omitempty"`
+	MaxFileSize string   `json:"max_file_size,omitempty"`
+}
+
+// FileFilter returns the file rules for this category. A category with no
+// Arr host behind it is a manual download and accepts any file type.
+func (a Arr) FileFilter() *config.FileFilter {
+	cfg := config.Get()
+	if a.Host == "" {
+		return cfg.ManualFileFilter()
+	}
+	return cfg.FileFilterFor(a.toConfig())
 }
 
 // Reachable reports whether the instance carries enough to be called.
@@ -113,6 +127,9 @@ func fromConfig(c config.Arr) Arr {
 		DownloadUncached: c.DownloadUncached,
 		SelectedDebrid:   c.SelectedDebrid,
 		Source:           Source(c.Source),
+		AllowedExt:       c.AllowedExt,
+		MinFileSize:      c.MinFileSize,
+		MaxFileSize:      c.MaxFileSize,
 	}
 }
 
@@ -125,6 +142,9 @@ func (a Arr) toConfig() config.Arr {
 		DownloadUncached: a.DownloadUncached,
 		SelectedDebrid:   a.SelectedDebrid,
 		Source:           string(a.Source),
+		AllowedExt:       a.AllowedExt,
+		MinFileSize:      a.MinFileSize,
+		MaxFileSize:      a.MaxFileSize,
 	}
 }
 

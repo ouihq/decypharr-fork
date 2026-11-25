@@ -244,11 +244,7 @@ func magnetLinksReady(files []MagnetFile) bool {
 	return true
 }
 
-func (ad *AllDebrid) flattenFiles(torrentId string, files []MagnetFile, parentPath string, index *int) map[string]types.File {
-	result := make(map[string]types.File)
-
-	cfg := config.Get()
-
+func (ad *AllDebrid) flattenFiles(t *types.Torrent, files []MagnetFile, parentPath string, index *int, result map[string]types.File) {
 	for _, f := range files {
 		currentPath := f.Name
 		if parentPath != "" {
@@ -256,35 +252,24 @@ func (ad *AllDebrid) flattenFiles(torrentId string, files []MagnetFile, parentPa
 		}
 
 		if f.Elements != nil {
-			subFiles := ad.flattenFiles(torrentId, f.Elements, currentPath, index)
-			for k, v := range subFiles {
-				if _, ok := result[k]; ok {
-					result[v.Path] = v
-				} else {
-					result[k] = v
-				}
-			}
-		} else {
-			fileName := filepath.Base(f.Name)
+			ad.flattenFiles(t, f.Elements, currentPath, index, result)
+			continue
+		}
+		if err := t.FileFilter.Allow(f.Name, f.Size); err != nil {
+			continue
+		}
 
-			if err := cfg.ValidateFileAllowed(f.Name, f.Size); err != nil {
-				continue
-			}
-
-			*index++
-			file := types.File{
-				TorrentId: torrentId,
-				Id:        strconv.Itoa(*index),
-				Name:      fileName,
-				Size:      f.Size,
-				Path:      currentPath,
-				Link:      f.Link,
-			}
-			result[file.Name] = file
+		*index++
+		name := types.UniqueFileName(result, currentPath)
+		result[name] = types.File{
+			TorrentId: t.Id,
+			Id:        strconv.Itoa(*index),
+			Name:      name,
+			Size:      f.Size,
+			Path:      currentPath,
+			Link:      f.Link,
 		}
 	}
-
-	return result
 }
 
 func (ad *AllDebrid) GetTorrent(torrentId string) (*types.Torrent, error) {
@@ -321,7 +306,8 @@ func (ad *AllDebrid) GetTorrent(torrentId string) (*types.Torrent, error) {
 	if status == "downloaded" {
 		t.Progress = 100
 		index := -1
-		files := ad.flattenFiles(t.Id, data.Files, "", &index)
+		files := make(map[string]types.File)
+		ad.flattenFiles(t, data.Files, "", &index, files)
 		t.Files = files
 	} else {
 		if data.Size > 0 {
@@ -364,7 +350,8 @@ func (ad *AllDebrid) updateTorrent(t *types.Torrent) (int, error) {
 	if status == "downloaded" {
 		t.Progress = 100
 		index := -1
-		files := ad.flattenFiles(t.Id, data.Files, "", &index)
+		files := make(map[string]types.File)
+		ad.flattenFiles(t, data.Files, "", &index, files)
 		t.Files = files
 	} else {
 		if data.Size > 0 {
@@ -598,13 +585,13 @@ func (ad *AllDebrid) GetTorrents() ([]*types.Torrent, error) {
 			if err := cfg.ValidateFileAllowed(f.Name, f.Size); err != nil {
 				continue
 			}
-			file := types.File{
+			name := types.UniqueFileName(t.Files, f.Name)
+			t.Files[name] = types.File{
 				TorrentId: t.Id,
-				Name:      f.Name,
+				Name:      name,
 				Size:      f.Size,
 				Link:      f.Link,
 			}
-			t.Files[file.Name] = file
 		}
 		torrents = append(torrents, t)
 	}

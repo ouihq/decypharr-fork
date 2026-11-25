@@ -266,6 +266,7 @@ func (f *Fixer) MoveTorrent(entry *storage.Entry, debridName string, reinsert bo
 		Size:             entry.Size,
 		Files:            make(map[string]types.File),
 		DownloadUncached: false,
+		FileFilter:       f.manager.arr.GetOrCreate(entry.Category).FileFilter(),
 	}
 
 	newDebridTorrent, err = client.SubmitMagnet(newDebridTorrent)

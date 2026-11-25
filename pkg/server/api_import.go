@@ -9,7 +9,6 @@ import (
 
 	"github.com/sirrobot01/decypharr/internal/config"
 	"github.com/sirrobot01/decypharr/internal/utils"
-	"github.com/sirrobot01/decypharr/pkg/arr"
 	"github.com/sirrobot01/decypharr/pkg/manager"
 	"github.com/sourcegraph/conc/iter"
 )
@@ -44,12 +43,8 @@ func (s *Server) handleAddContent(w http.ResponseWriter, r *http.Request) {
 		rmTrackerUrls = true
 	}
 
-	// A category with no configured Arr is a throwaway that only routes the
-	// download.
-	instance, known := s.manager.Arr().Get(arrName)
-	if !known {
-		instance = arr.Arr{Name: arrName}
-	}
+	// A category with no configured Arr only routes the download and accepts any file type.
+	instance := s.manager.Arr().GetOrCreate(arrName)
 
 	type addTask struct {
 		request *manager.ImportRequest

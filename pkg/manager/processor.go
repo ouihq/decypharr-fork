@@ -1,6 +1,7 @@
 package manager
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"fmt"
@@ -22,9 +23,7 @@ func (m *Manager) AddNewTorrent(ctx context.Context, importReq *ImportRequest) e
 	if importReq == nil || importReq.Magnet == nil {
 		return fmt.Errorf("magnet is required")
 	}
-	if importReq.Arr.Name == "" {
-		return fmt.Errorf("arr is required")
-	}
+	importReq.Arr.Name = cmp.Or(importReq.Arr.Name, "uncategorized")
 
 	return m.torrentSubmissions.Do(ctx, torrentSubmissionKey(importReq), func() error {
 		// qBittorrent treats adding an existing hash as an idempotent success.
@@ -447,6 +446,8 @@ func (m *Manager) SendToDebrid(ctx context.Context, importRequest *ImportRequest
 		Name:     importRequest.Magnet.Name,
 		Size:     importRequest.Magnet.Size,
 		Files:    make(map[string]debridTypes.File),
+
+		FileFilter: importRequest.Arr.FileFilter(),
 	}
 
 	clients := m.FilterDebrid(func(c common.Client) bool {

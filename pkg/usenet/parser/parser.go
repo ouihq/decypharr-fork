@@ -12,7 +12,6 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/rs/zerolog"
-	"github.com/sirrobot01/decypharr/internal/config"
 	"github.com/sirrobot01/decypharr/internal/customerror"
 	"github.com/sirrobot01/decypharr/internal/nntp"
 	"github.com/sirrobot01/decypharr/internal/utils"
@@ -264,8 +263,6 @@ func (p *NZBParser) Process(ctx context.Context, nzb *storage.NZB, groups map[st
 		return nil, fmt.Errorf("no valid files found in NZB")
 	}
 
-	cfg := config.Get()
-
 	// Change file name if there's only one file
 	hasOneFile := len(files) == 1
 	skippedFiles := 0
@@ -282,7 +279,7 @@ func (p *NZBParser) Process(ctx context.Context, nzb *storage.NZB, groups map[st
 				file.Name = nzb.Name
 			}
 		}
-		if err := cfg.ValidateFileAllowed(file.Name, file.Size); err != nil {
+		if err := nzb.FileFilter.Allow(file.Name, file.Size); err != nil {
 			skippedFiles++
 			skippedErr = err
 			continue

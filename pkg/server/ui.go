@@ -169,6 +169,7 @@ func (s *Server) DownloadHandler(w http.ResponseWriter, r *http.Request) {
 		"Title":                   "Download",
 		"Debrids":                 debrids,
 		"HasMultiDebrid":          len(debrids) > 1,
+		"Arrs":                    s.manager.Arr().All(),
 		"downloadFolder":          cfg.DownloadFolder,
 		"alwaysRemoveTrackerURLS": cfg.AlwaysRmTrackerUrls,
 		"SetupError":              cfg.SetupError(),

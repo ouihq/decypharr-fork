@@ -239,7 +239,7 @@ func (pm *Premiumize) GetTorrent(torrentID string) (*types.Torrent, error) {
 	}
 	for _, tr := range transfers {
 		if tr.ID == torrentID {
-			return pm.transferToTorrent(tr, "")
+			return pm.transferToTorrent(tr, "", pm.validateFileAllowed)
 		}
 	}
 	return nil, customerror.TorrentNotFoundError
@@ -252,7 +252,7 @@ func (pm *Premiumize) UpdateTorrent(t *types.Torrent) error {
 	}
 	for _, tr := range transfers {
 		if tr.ID == t.Id {
-			updated, err := pm.transferToTorrent(tr, t.InfoHash)
+			updated, err := pm.transferToTorrent(tr, t.InfoHash, t.FileFilter.Allow)
 			if err != nil {
 				return err
 			}
@@ -317,7 +317,7 @@ func (pm *Premiumize) GetTorrents() ([]*types.Torrent, error) {
 	}
 	torrents := make([]*types.Torrent, 0, len(transfers))
 	for _, tr := range transfers {
-		torrent, err := pm.transferToTorrent(tr, "")
+		torrent, err := pm.transferToTorrent(tr, "", pm.validateFileAllowed)
 		if err != nil {
 			pm.logger.Warn().Err(err).Str("transfer_id", tr.ID).Msg("Skipping Premiumize transfer")
 			continue
@@ -341,14 +341,14 @@ func (pm *Premiumize) listTransfers() ([]premiumizeTransfer, error) {
 	return data.Transfers, nil
 }
 
-func (pm *Premiumize) transferToTorrent(tr premiumizeTransfer, fallbackInfoHash string) (*types.Torrent, error) {
+func (pm *Premiumize) transferToTorrent(tr premiumizeTransfer, fallbackInfoHash string, allow func(string, int64) error) (*types.Torrent, error) {
 	status := mapStatus(tr.Status)
 	files := make(map[string]types.File)
 	var links []string
 	if status == types.TorrentStatusDownloaded {
 		var err error
 		var ready bool
-		files, links, ready, err = pm.filesForTransfer(tr)
+		files, links, ready, err = pm.filesForTransfer(tr, allow)
 		if err != nil {
 			return nil, err
 		}
@@ -397,7 +397,7 @@ func (pm *Premiumize) transferInfoHash(tr premiumizeTransfer, fallbackInfoHash s
 	return fmt.Sprintf("%x", digest[:20])
 }
 
-func (pm *Premiumize) filesForTransfer(tr premiumizeTransfer) (map[string]types.File, []string, bool, error) {
+func (pm *Premiumize) filesForTransfer(tr premiumizeTransfer, allow func(string, int64) error) (map[string]types.File, []string, bool, error) {
 	files := make(map[string]types.File)
 	links := make([]string, 0)
 	if fileID := tr.FileID.String(); fileID != "" {
@@ -405,11 +405,11 @@ func (pm *Premiumize) filesForTransfer(tr premiumizeTransfer) (map[string]types.
 		if err != nil {
 			return nil, nil, false, err
 		}
-		pm.addFile(files, &links, tr.ID, item.Name, item.Name, item.Size, item.ID, item.Link)
+		pm.addFile(files, &links, tr.ID, item.Name, item.Name, item.Size, item.ID, item.Link, allow)
 		return files, links, item.Link != "", nil
 	}
 	if folderID := tr.FolderID.String(); folderID != "" {
-		linkedFiles, err := pm.addFolderFiles(files, &links, tr.ID, folderID, "")
+		linkedFiles, err := pm.addFolderFiles(files, &links, tr.ID, folderID, "", allow)
 		if err != nil {
 			return nil, nil, false, err
 		}
@@ -430,7 +430,7 @@ func (pm *Premiumize) itemDetails(ctx context.Context, id string) (*itemDetailsR
 	return &data, nil
 }
 
-func (pm *Premiumize) addFolderFiles(files map[string]types.File, links *[]string, transferID, folderID, prefix string) (int, error) {
+func (pm *Premiumize) addFolderFiles(files map[string]types.File, links *[]string, transferID, folderID, prefix string, allow func(string, int64) error) (int, error) {
 	var data folderListResponse
 	req, err := http.NewRequest(http.MethodGet, pm.endpoint("/api/folder/list?id="+url.QueryEscape(folderID)), nil)
 	if err != nil {
@@ -445,7 +445,7 @@ func (pm *Premiumize) addFolderFiles(files map[string]types.File, links *[]strin
 	for _, item := range data.Content {
 		itemPath := path.Join(prefix, item.Name)
 		if item.Type == "folder" {
-			n, err := pm.addFolderFiles(files, links, transferID, item.ID, itemPath)
+			n, err := pm.addFolderFiles(files, links, transferID, item.ID, itemPath, allow)
 			if err != nil {
 				return 0, err
 			}
@@ -455,29 +455,26 @@ func (pm *Premiumize) addFolderFiles(files map[string]types.File, links *[]strin
 		if item.Link != "" {
 			linkedFiles++
 		}
-		pm.addFile(files, links, transferID, item.Name, itemPath, item.Size, item.ID, item.Link)
+		pm.addFile(files, links, transferID, item.Name, itemPath, item.Size, item.ID, item.Link, allow)
 	}
 	return linkedFiles, nil
 }
 
-func (pm *Premiumize) addFile(files map[string]types.File, links *[]string, transferID, name, itemPath string, size int64, id, link string) {
+func (pm *Premiumize) addFile(files map[string]types.File, links *[]string, transferID, name, itemPath string, size int64, id, link string, allow func(string, int64) error) {
 	if link == "" {
 		return
 	}
 	if itemPath == "" {
 		itemPath = name
 	}
-	if pm.validateFileAllowed != nil {
-		if err := pm.validateFileAllowed(itemPath, size); err != nil {
+	if allow != nil {
+		if err := allow(itemPath, size); err != nil {
 			return
 		}
 	} else if filepath.Ext(itemPath) == "" {
 		return
 	}
-	fileName := filepath.Base(itemPath)
-	if _, exists := files[fileName]; exists {
-		fileName = itemPath
-	}
+	fileName := types.UniqueFileName(files, itemPath)
 	files[fileName] = types.File{
 		TorrentId: transferID,
 		Id:        id,

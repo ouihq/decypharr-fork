@@ -8,6 +8,7 @@ import (
 	"github.com/puzpuzpuz/xsync/v4"
 	"github.com/rs/zerolog"
 	"github.com/sirrobot01/decypharr/internal/config"
+	"github.com/sirrobot01/decypharr/pkg/arr"
 	debrid "github.com/sirrobot01/decypharr/pkg/debrid/common"
 	"github.com/sirrobot01/decypharr/pkg/debrid/types"
 	"github.com/sirrobot01/decypharr/pkg/storage"
@@ -48,7 +49,7 @@ func TestFixTorrentWithRemovedProvider(t *testing.T) {
 				}
 				t.Cleanup(func() { _ = store.Close() })
 				client := &replacementProvider{}
-				m := &Manager{storage: store, clients: xsync.NewMap[string, debrid.Client](), logger: zerolog.Nop()}
+				m := &Manager{storage: store, clients: xsync.NewMap[string, debrid.Client](), arr: arr.New(), logger: zerolog.Nop()}
 				m.clients.Store("remaining", client)
 				fixer := NewFixer(m)
 				fixer.providerOrder = []string{"remaining"}

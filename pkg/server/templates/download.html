@@ -95,8 +95,14 @@
                                class="input w-full"
                                id="arr"
                                name="arr"
+                               list="arr-options"
                                placeholder="sonarr, radarr, etc.">
-                        <span class="text-sm opacity-70">Optional: Specify which Arr service should handle this</span>
+                        <datalist id="arr-options">
+                            {{ range .Arrs }}
+                            <option value="{{ .Name }}"></option>
+                            {{ end }}
+                        </datalist>
+                        <span class="text-sm opacity-70">Optional: an Arr name uses its file rules. Any other category is just a folder and keeps every file type. Empty means "uncategorized".</span>
                     </div>
 
                     {{ if .HasMultiDebrid }}

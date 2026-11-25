@@ -197,15 +197,15 @@ func (dl *DebridLink) GetTorrent(torrentId string) (*types.Torrent, error) {
 		if err := cfg.ValidateFileAllowed(f.Name, f.Size); err != nil {
 			continue
 		}
-		file := types.File{
+		name := types.UniqueFileName(torrent.Files, f.Name)
+		torrent.Files[name] = types.File{
 			TorrentId: t.ID,
 			Id:        f.ID,
-			Name:      f.Name,
+			Name:      name,
 			Size:      f.Size,
 			Path:      f.Name,
 			Link:      f.DownloadURL,
 		}
-		torrent.Files[file.Name] = file
 	}
 
 	return torrent, nil
@@ -252,16 +252,17 @@ func (dl *DebridLink) UpdateTorrent(t *types.Torrent) error {
 		t.InfoHash = data.HashString
 	}
 	t.Added = time.Unix(data.Created, 0)
-	cfg := config.Get()
 	now := time.Now()
+	t.Files = make(map[string]types.File, len(data.Files))
 	for _, f := range data.Files {
-		if err := cfg.ValidateFileAllowed(f.Name, f.Size); err != nil {
+		if err := t.FileFilter.Allow(f.Name, f.Size); err != nil {
 			continue
 		}
+		name := types.UniqueFileName(t.Files, f.Name)
 		file := types.File{
 			TorrentId: t.Id,
 			Id:        f.ID,
-			Name:      f.Name,
+			Name:      name,
 			Size:      f.Size,
 			Path:      f.Name,
 			Link:      f.DownloadURL,
@@ -269,14 +270,14 @@ func (dl *DebridLink) UpdateTorrent(t *types.Torrent) error {
 		link := types.DownloadLink{
 			Debrid:       dl.config.Name,
 			Token:        dl.APIKey,
-			Filename:     f.Name,
+			Filename:     name,
 			Link:         f.DownloadURL,
 			DownloadLink: f.DownloadURL,
 			Generated:    now,
 			ExpiresAt:    now.Add(dl.autoExpiresLinksAfter),
 		}
 		file.DownloadLink = link
-		t.Files[f.Name] = file
+		t.Files[name] = file
 		dl.accountsManager.StoreDownloadLink(link)
 	}
 
@@ -333,10 +334,11 @@ func (dl *DebridLink) SubmitMagnet(t *types.Torrent) (*types.Torrent, error) {
 	t.Added = time.Unix(data.Created, 0)
 	now := time.Now()
 	for _, f := range data.Files {
+		name := types.UniqueFileName(t.Files, f.Name)
 		file := types.File{
 			TorrentId: t.Id,
 			Id:        f.ID,
-			Name:      f.Name,
+			Name:      name,
 			Size:      f.Size,
 			Path:      f.Name,
 			Link:      f.DownloadURL,
@@ -345,14 +347,14 @@ func (dl *DebridLink) SubmitMagnet(t *types.Torrent) (*types.Torrent, error) {
 		link := types.DownloadLink{
 			Debrid:       dl.config.Name,
 			Token:        dl.APIKey,
-			Filename:     f.Name,
+			Filename:     name,
 			Link:         f.DownloadURL,
 			DownloadLink: f.DownloadURL,
 			Generated:    now,
 			ExpiresAt:    now.Add(dl.autoExpiresLinksAfter),
 		}
 		file.DownloadLink = link
-		t.Files[f.Name] = file
+		t.Files[name] = file
 		dl.accountsManager.StoreDownloadLink(link)
 	}
 
@@ -574,10 +576,11 @@ func (dl *DebridLink) getTorrents(page, perPage int) ([]*types.Torrent, error) {
 			if err := cfg.ValidateFileAllowed(f.Name, f.Size); err != nil {
 				continue
 			}
+			name := types.UniqueFileName(torrent.Files, f.Name)
 			file := types.File{
 				TorrentId: torrent.Id,
 				Id:        f.ID,
-				Name:      f.Name,
+				Name:      name,
 				Size:      f.Size,
 				Path:      f.Name,
 				Link:      f.DownloadURL,
@@ -585,14 +588,14 @@ func (dl *DebridLink) getTorrents(page, perPage int) ([]*types.Torrent, error) {
 			link := types.DownloadLink{
 				Debrid:       dl.config.Name,
 				Token:        dl.APIKey,
-				Filename:     f.Name,
+				Filename:     name,
 				Link:         f.DownloadURL,
 				DownloadLink: f.DownloadURL,
 				Generated:    now,
 				ExpiresAt:    now.Add(dl.autoExpiresLinksAfter),
 			}
 			file.DownloadLink = link
-			torrent.Files[f.Name] = file
+			torrent.Files[name] = file
 			dl.accountsManager.StoreDownloadLink(link)
 		}
 		torrents = append(torrents, torrent)

@@ -1,6 +1,7 @@
 package manager
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"fmt"
@@ -24,9 +25,7 @@ func (m *Manager) AddNewNZB(ctx context.Context, req *ImportRequest) (string, er
 	if req == nil || len(req.NZBContent) == 0 {
 		return "", fmt.Errorf("NZB content is empty")
 	}
-	if req.Arr.Name == "" {
-		return "", fmt.Errorf("arr is required")
-	}
+	req.Arr.Name = cmp.Or(req.Arr.Name, "uncategorized")
 
 	m.logger.Info().
 		Str("name", req.Name).
@@ -183,6 +182,7 @@ func (m *Manager) processNewNzb(parentCtx context.Context, entry *storage.Entry,
 		hearsaySubject = hearsay.NZBSubjectFromGroups(groups)
 	}
 
+	metadata.FileFilter = m.arr.GetOrCreate(entry.Category).FileFilter()
 	updatedNZB, err := m.usenet.Process(ctx, metadata, groups)
 	if err != nil {
 		if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {

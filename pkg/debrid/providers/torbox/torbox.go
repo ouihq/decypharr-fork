@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"net/url"
 	"path"
-	"path/filepath"
 	"regexp"
 	"runtime"
 	"strconv"
@@ -334,7 +333,7 @@ func (tb *Torbox) GetTorrent(torrentId string) (*types.Torrent, error) {
 	cfg := config.Get()
 
 	for _, f := range data.Files {
-		fileName := filepath.Base(f.Name)
+		fileName := types.UniqueFileName(t.Files, f.Name)
 		if err := cfg.ValidateFileAllowed(f.AbsolutePath, f.Size); err != nil {
 			continue
 		}
@@ -424,12 +423,10 @@ func (tb *Torbox) updateTorrentWithClient(client *request.Client, t *types.Torre
 
 	t.Files = make(map[string]types.File)
 
-	cfg := config.Get()
-
 	for _, f := range data.Files {
-		fileName := filepath.Base(f.Name)
+		fileName := types.UniqueFileName(t.Files, f.Name)
 
-		if err := cfg.ValidateFileAllowed(f.AbsolutePath, f.Size); err != nil {
+		if err := t.FileFilter.Allow(f.AbsolutePath, f.Size); err != nil {
 			continue
 		}
 
@@ -619,7 +616,7 @@ func (tb *Torbox) getTorrents(offset int) ([]*types.Torrent, error) {
 		}
 
 		for _, f := range data.Files {
-			fileName := filepath.Base(f.Name)
+			fileName := types.UniqueFileName(t.Files, f.Name)
 			if err := cfg.ValidateFileAllowed(f.AbsolutePath, f.Size); err != nil {
 				continue
 			}

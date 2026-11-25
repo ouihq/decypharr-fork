@@ -176,6 +176,9 @@ func (s *Service) SyncToConfig() []config.Arr {
 		existing.SkipRepair = instance.SkipRepair
 		existing.DownloadUncached = instance.DownloadUncached
 		existing.SelectedDebrid = instance.SelectedDebrid
+		existing.AllowedExt = instance.AllowedExt
+		existing.MinFileSize = instance.MinFileSize
+		existing.MaxFileSize = instance.MaxFileSize
 		merged[instance.Name] = existing
 	}
 	return slices.Collect(maps.Values(merged))

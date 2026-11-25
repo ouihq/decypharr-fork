@@ -3,6 +3,8 @@ package storage
 import (
 	"fmt"
 	"time"
+
+	"github.com/sirrobot01/decypharr/internal/config"
 )
 
 type NZBFileType string
@@ -41,6 +43,8 @@ type NZB struct {
 	Storage        string    `json:"storage" msgpack:"storage"`
 	FailMessage    string    `json:"fail_message,omitempty" msgpack:"fail_message,omitempty"`
 	Password       string    `json:"password,omitempty" msgpack:"password,omitempty"`
+
+	FileFilter *config.FileFilter `json:"-" msgpack:"-"` // nil uses the global rules
 }
 
 // NZBFile represents a grouped file with its Segments

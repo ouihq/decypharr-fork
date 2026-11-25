@@ -29,45 +29,67 @@ func isSample(path string) bool {
 	return sampleRegex.MatchString(filename)
 }
 
-func (c *Config) ValidateFileAllowed(filename string, filesize int64) error {
-	// Skip samples if configured
-	if !c.AllowSamples && isSample(filename) {
-		// Skip sample files
+// FileFilter decides which files of a download are kept.
+type FileFilter struct {
+	AllowedExt   []string
+	AnyExt       bool // skip the extension check
+	MinSize      int64
+	MaxSize      int64
+	AllowSamples bool
+}
+
+// Allow returns why a file is skipped, or nil. A nil filter uses the global settings.
+func (f *FileFilter) Allow(filename string, filesize int64) error {
+	if f == nil {
+		f = Get().FileFilter()
+	}
+	if !f.AllowSamples && isSample(filename) {
 		return ErrFileIsSample
 	}
-
-	if !c.isNameAllowed(filename) {
+	if !f.AnyExt && !slices.Contains(f.AllowedExt, strings.TrimPrefix(strings.ToLower(filepath.Ext(filename)), ".")) {
 		return ErrFileExtNotAllowed
 	}
-
-	// Check size constraints
-	if !c.isSizeAllowed(filesize) {
-		return fmt.Errorf("file size %d is not allowed. expected range: [%d - %d]", filesize, c.GetMinFileSize(), c.GetMaxFileSize())
+	// 0 size means the debrid hasn't reported it yet
+	if filesize > 0 && (f.MinSize > 0 && filesize < f.MinSize || f.MaxSize > 0 && filesize > f.MaxSize) {
+		return fmt.Errorf("file size %d is not allowed. expected range: [%d - %d]", filesize, f.MinSize, f.MaxSize)
 	}
 	return nil
 }
 
-func (c *Config) isSizeAllowed(size int64) bool {
-	if size == 0 {
-		return true // Maybe the debrid hasn't reported the size yet
+// FileFilter returns the global file rules.
+func (c *Config) FileFilter() *FileFilter {
+	return &FileFilter{
+		AllowedExt:   c.AllowedExt,
+		MinSize:      c.GetMinFileSize(),
+		MaxSize:      c.GetMaxFileSize(),
+		AllowSamples: c.AllowSamples,
 	}
-	if c.GetMinFileSize() > 0 && size < c.GetMinFileSize() {
-		return false
-	}
-	if c.GetMaxFileSize() > 0 && size > c.GetMaxFileSize() {
-		return false
-	}
-	return true
 }
-func (c *Config) isNameAllowed(filename string) bool {
-	ext := strings.ToLower(filepath.Ext(filename))
-	if ext == "" {
-		return false
-	}
-	// Remove the leading dot
-	ext = ext[1:]
 
-	return slices.Contains(c.AllowedExt, ext)
+// FileFilterFor returns the Arr's file rules. Each unset field uses the global value.
+func (c *Config) FileFilterFor(a Arr) *FileFilter {
+	f := c.FileFilter()
+	if len(a.AllowedExt) > 0 {
+		f.AllowedExt = a.AllowedExt
+	}
+	if s, err := ParseSize(a.MinFileSize); err == nil {
+		f.MinSize = s
+	}
+	if s, err := ParseSize(a.MaxFileSize); err == nil {
+		f.MaxSize = s
+	}
+	return f
+}
+
+// ManualFileFilter is used for downloads with no Arr behind them: any file type.
+func (c *Config) ManualFileFilter() *FileFilter {
+	f := c.FileFilter()
+	f.AnyExt = true
+	return f
+}
+
+func (c *Config) ValidateFileAllowed(filename string, filesize int64) error {
+	return c.FileFilter().Allow(filename, filesize)
 }
 
 func getDefaultExtensions() []string {

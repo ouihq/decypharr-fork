@@ -207,16 +207,20 @@ func (r *RealDebrid) doPostFormWithClient(ctx context.Context, client *request.C
 func (r *RealDebrid) getSelectedFiles(t *types.Torrent, data torrentInfo) (map[string]types.File, error) {
 	files := make(map[string]types.File)
 	selectedFiles := make([]types.File, 0)
+	names := make(map[string]types.File)
 
 	for _, f := range data.Files {
 		if f.Selected == 1 {
-			selectedFiles = append(selectedFiles, types.File{
+			name := types.UniqueFileName(names, f.Path)
+			file := types.File{
 				TorrentId: t.Id,
-				Name:      filepath.Base(f.Path),
-				Path:      filepath.Base(f.Path),
+				Name:      name,
+				Path:      name,
 				Size:      f.Bytes,
 				Id:        strconv.Itoa(f.ID),
-			})
+			}
+			names[name] = file
+			selectedFiles = append(selectedFiles, file)
 		}
 	}
 
@@ -231,6 +235,8 @@ func (r *RealDebrid) getSelectedFiles(t *types.Torrent, data torrentInfo) (map[s
 
 	// Standard case - map files to links
 	if len(selectedFiles) > len(data.Links) {
+		r.logger.Warn().Str("torrent", t.Name).Int("selected", len(selectedFiles)).Int("links", len(data.Links)).
+			Msg("Fewer links than selected files, can't match them up")
 		return files, nil
 	}
 
@@ -331,24 +337,20 @@ func (r *RealDebrid) handleRarArchive(t *types.Torrent, data torrentInfo, select
 
 func (r *RealDebrid) getTorrentFiles(t *types.Torrent, data torrentInfo) map[string]types.File {
 	files := make(map[string]types.File)
-	cfg := config.Get()
-	idx := 0
 
 	for _, f := range data.Files {
-		name := filepath.Base(f.Path)
-		if err := cfg.ValidateFileAllowed(name, f.Bytes); err != nil {
+		if err := t.FileFilter.Allow(filepath.Base(f.Path), f.Bytes); err != nil {
 			continue
 		}
 
-		file := types.File{
+		name := types.UniqueFileName(files, f.Path)
+		files[name] = types.File{
 			TorrentId: t.Id,
 			Name:      name,
 			Path:      name,
 			Size:      f.Bytes,
 			Id:        strconv.Itoa(f.ID),
 		}
-		files[name] = file
-		idx++
 	}
 	return files
 }
