@@ -46,6 +46,7 @@ class TorrentDashboard {
     bindEvents() {
         // Refresh button
         this.refs.refreshBtn.addEventListener('click', () => this.loadTorrents());
+        document.getElementById('speedLimitForm')?.addEventListener('submit', (e) => this.setSpeedLimit(e));
 
         // Batch delete
         this.refs.batchDeleteBtn.addEventListener('click', () => this.deleteSelectedTorrents());
@@ -319,7 +320,7 @@ class TorrentDashboard {
                     <td>
                         <span class="text-sm">${this.isOnDebrid(torrent) ? (torrent.seeders || 0) : '-'}</span>
                     </td>
-                    <td>
+                    <td class="whitespace-nowrap">
                         ${this.renderStateBadge(torrent)}
                     </td>
                     <td class="whitespace-nowrap">
@@ -359,6 +360,22 @@ class TorrentDashboard {
     // Still being fetched by the debrid provider, not yet on this device.
     isOnDebrid(torrent) {
         return torrent.state === 'downloading' && !torrent.is_downloading && torrent.status !== 'downloaded';
+    }
+
+    async setSpeedLimit(event) {
+        event.preventDefault();
+        const input = document.getElementById('speedLimitInput');
+        const response = await window.decypharrUtils.fetcher('/api/download-speed-limit', {
+            method: 'POST',
+            body: JSON.stringify({limit: input.value})
+        });
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok) {
+            window.decypharrUtils.createToast(result.error || result.message || 'Could not set the speed limit', 'error');
+            return;
+        }
+        input.value = result.limit;
+        window.decypharrUtils.createToast(result.limit ? `Speed limit set to ${result.limit}/s` : 'Speed limit removed', 'success');
     }
 
     async deviceAction(key, action) {

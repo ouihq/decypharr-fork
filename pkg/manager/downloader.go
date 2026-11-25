@@ -68,16 +68,28 @@ func NewDownloadManager(manager *Manager) *Downloader {
 	}
 }
 
-// rateLimiter returns the shared limiter set to the current download_speed_limit, or nil when there is none.
-func (d *Downloader) rateLimiter() grab.RateLimiter {
+// speedLimiter applies download_speed_limit on every read, so a changed limit
+// also affects downloads that are already running.
+type speedLimiter struct{ limiter *rate.Limiter }
+
+func (s speedLimiter) WaitN(ctx context.Context, n int) error {
 	limit, err := config.ParseSize(config.Get().DownloadSpeedLimit)
-	if err != nil || limit <= 0 || d.limiter == nil {
+	if err != nil || limit <= 0 {
 		return nil
 	}
-	d.limiter.SetLimit(rate.Limit(limit))
-	// grab waits for a whole read buffer at once, so the burst must fit one
-	d.limiter.SetBurst(max(int(limit), localDownloadBufferSize))
-	return d.limiter
+	if s.limiter.Limit() != rate.Limit(limit) {
+		s.limiter.SetLimit(rate.Limit(limit))
+		// grab waits for a whole read buffer at once, so the burst must fit one
+		s.limiter.SetBurst(max(int(limit), localDownloadBufferSize))
+	}
+	return s.limiter.WaitN(ctx, n)
+}
+
+func (d *Downloader) rateLimiter() grab.RateLimiter {
+	if d.limiter == nil {
+		return nil
+	}
+	return speedLimiter{d.limiter}
 }
 
 func (d *Downloader) download(ctx context.Context, torrent *storage.Entry) error {

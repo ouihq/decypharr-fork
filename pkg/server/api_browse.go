@@ -470,6 +470,29 @@ func (s *Server) handleCopyTransfers(w http.ResponseWriter, r *http.Request) {
 	utils.JSONResponse(w, s.manager.CopyTransfers(), http.StatusOK)
 }
 
+// handleDownloadSpeedLimit changes download_speed_limit, which running downloads pick up right away.
+func (s *Server) handleDownloadSpeedLimit(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Limit string `json:"limit"`
+	}
+	if err := json.ConfigDefault.NewDecoder(r.Body).Decode(&req); err != nil {
+		s.sendJSONError(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+	limit := strings.TrimSpace(req.Limit)
+	if limit != "" {
+		if _, err := config.ParseSize(limit); err != nil {
+			s.sendJSONError(w, "invalid speed, use a value like 20MB", http.StatusBadRequest)
+			return
+		}
+	}
+	if _, err := config.Update(func(c *config.Config) error { c.DownloadSpeedLimit = limit; return nil }); err != nil {
+		s.sendJSONError(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	utils.JSONResponse(w, map[string]string{"limit": limit}, http.StatusOK)
+}
+
 func (s *Server) handleDeviceQueue(w http.ResponseWriter, r *http.Request) {
 	utils.JSONResponse(w, s.manager.DeviceQueue(), http.StatusOK)
 }

@@ -29,6 +29,15 @@
                         <i class="bi bi-arrow-clockwise"></i>
                         <span class="hidden sm:inline">Refresh</span>
                     </button>
+                    <form class="join" id="speedLimitForm" title="Total speed for downloads to this device. Empty means no limit.">
+                        <label class="join-item btn btn-sm btn-ghost no-animation pointer-events-none" for="speedLimitInput">
+                            <i class="bi bi-speedometer" aria-hidden="true"></i>
+                            <span class="hidden sm:inline">Speed limit</span>
+                        </label>
+                        <input type="text" class="input input-sm join-item w-28" id="speedLimitInput"
+                               value="{{ .DownloadSpeedLimit }}" placeholder="No limit" aria-label="Download speed limit, e.g. 20MB">
+                        <button type="submit" class="btn btn-sm join-item">Set</button>
+                    </form>
                 </div>
 
                 <div class="grid w-full grid-cols-2 gap-2 sm:flex sm:flex-wrap lg:w-auto">

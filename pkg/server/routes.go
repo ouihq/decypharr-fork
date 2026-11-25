@@ -100,6 +100,7 @@ func (s *Server) WebRoutes() http.Handler {
 			// Downloads to this device: order, pause and resume
 			r.Get("/device-queue", s.handleDeviceQueue)
 			r.Post("/device-queue/{action}", s.handleDeviceQueueAction)
+			r.Post("/download-speed-limit", s.handleDownloadSpeedLimit)
 
 			// STRM reconciler
 			r.Post("/strm/regenerate", s.handleStrmRegenerate)
