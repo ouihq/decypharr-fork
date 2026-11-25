@@ -13,54 +13,54 @@
     {{ end }}
 
     <form id="configForm" class="space-y-6">
-        <div class="card bg-base-100 shadow-xl">
-            <div class="card-body">
-                <div class="border-b border-base-300 mb-6 overflow-x-auto sm:mb-8">
-                    <nav class="flex min-w-max gap-3 sm:gap-8" aria-label="Configuration Tabs">
+        <div class="card bg-base-100">
+            <div class="card-body lg:grid lg:grid-cols-[12rem_minmax(0,1fr)] lg:gap-x-8 lg:gap-y-0">
+                <div class="mb-4 overflow-x-auto lg:row-span-2 lg:sticky lg:top-20 lg:self-start lg:mb-0">
+                    <nav class="min-w-max" aria-label="Configuration Tabs">
                         <button type="button"
-                                class="tab-button active cursor-pointer flex items-center gap-2 py-3 px-1 border-b-2 border-primary text-primary font-medium text-sm"
+                                class="tab-button active"
                                 data-tab="general">
                             <i class="bi bi-gear text-lg"></i>
                             <span>General</span>
                         </button>
                         <button type="button"
-                                class="tab-button cursor-pointer flex items-center gap-2 py-3 px-1 border-b-2 border-transparent text-base-content/70 hover:text-base-content hover:border-base-300 font-medium text-sm transition-colors"
+                                class="tab-button"
                                 data-tab="debrid">
                             <i class="bi bi-cloud text-lg"></i>
                             <span>Debrid</span>
                         </button>
                         <button type="button"
-                                class="tab-button cursor-pointer flex items-center gap-2 py-3 px-1 border-b-2 border-transparent text-base-content/70 hover:text-base-content hover:border-base-300 font-medium text-sm transition-colors"
+                                class="tab-button"
                                 data-tab="usenet">
                             <i class="bi bi-newspaper text-lg"></i>
                             <span>Usenet</span>
                         </button>
                         <button type="button"
-                                class="tab-button cursor-pointer flex items-center gap-2 py-3 px-1 border-b-2 border-transparent text-base-content/70 hover:text-base-content hover:border-base-300 font-medium text-sm transition-colors"
+                                class="tab-button"
                                 data-tab="arrs">
                             <i class="bi bi-collection text-lg"></i>
                             <span>*Arrs</span>
                         </button>
                         <button type="button"
-                                class="tab-button cursor-pointer flex items-center gap-2 py-3 px-1 border-b-2 border-transparent text-base-content/70 hover:text-base-content hover:border-base-300 font-medium text-sm transition-colors"
+                                class="tab-button"
                                 data-tab="mounts">
                             <i class="bi bi-hdd-stack text-lg"></i>
                             <span>Mounts</span>
                         </button>
                         <button type="button"
-                                class="tab-button cursor-pointer flex items-center gap-2 py-3 px-1 border-b-2 border-transparent text-base-content/70 hover:text-base-content hover:border-base-300 font-medium text-sm transition-colors"
+                                class="tab-button"
                                 data-tab="shares">
                             <i class="bi bi-share text-lg"></i>
                             <span>Shares</span>
                         </button>
                         <button type="button"
-                                class="tab-button cursor-pointer flex items-center gap-2 py-3 px-1 border-b-2 border-transparent text-base-content/70 hover:text-base-content hover:border-base-300 font-medium text-sm transition-colors"
+                                class="tab-button"
                                 data-tab="repair">
                             <i class="bi bi-heart-pulse text-lg"></i>
                             <span>Repair</span>
                         </button>
                         <button type="button"
-                                class="tab-button cursor-pointer flex items-center gap-2 py-3 px-1 border-b-2 border-transparent text-base-content/70 hover:text-base-content hover:border-base-300 font-medium text-sm transition-colors"
+                                class="tab-button"
                                 data-tab="hearsay">
                             <i class="bi bi-broadcast text-lg"></i>
                             <span>Hearsay</span>
@@ -68,45 +68,45 @@
                     </nav>
                 </div>
 
-                <div class="sticky top-20 z-30 flex justify-end mb-4">
-                    <button type="submit" class="btn btn-success btn-lg w-full shadow-lg sm:w-auto">
+                <div class="sticky top-20 z-30 flex justify-end mb-4 lg:col-start-2">
+                    <button type="submit" class="btn btn-primary w-full sm:w-auto">
                         <i class="bi bi-save mr-2"></i>Save Configuration
                     </button>
                 </div>
 
-                <div class="tab-content-container">
+                <div class="tab-content-container lg:col-start-2">
 
                 <div class="tab-content" data-tab-content="general">
                     <div class="space-y-6">
-                    <div class="border-b border-base-300 mb-6 overflow-x-auto">
-                        <nav class="subtab-nav flex min-w-max gap-2 sm:gap-4" data-subtab-group="general" data-subtab-accent="primary" aria-label="general sub-tabs">
+                    <div class="mb-6 overflow-x-auto">
+                        <nav class="subtab-nav" data-subtab-group="general" data-subtab-accent="primary" aria-label="general sub-tabs">
                             <button type="button"
-                                    class="subtab-button active cursor-pointer py-2 px-4 border-b-2 border-primary text-primary font-medium text-sm"
+                                    class="subtab-button active"
                                     data-subtab="settings">
                                 <i class="bi bi-gear mr-2"></i>General
                             </button>
                             <button type="button"
-                                    class="subtab-button cursor-pointer py-2 px-4 border-b-2 border-transparent text-base-content/70 hover:text-base-content hover:border-base-300 font-medium text-sm transition-colors"
+                                    class="subtab-button"
                                     data-subtab="virtual-folders">
                                 <i class="bi bi-folder-symlink mr-2"></i>Virtual Folders
                             </button>
                             <button type="button"
-                                    class="subtab-button cursor-pointer py-2 px-4 border-b-2 border-transparent text-base-content/70 hover:text-base-content hover:border-base-300 font-medium text-sm transition-colors"
+                                    class="subtab-button"
                                     data-subtab="downloads">
                                 <i class="bi bi-download mr-2"></i>qBittorrent & SABnzbd
                             </button>
                             <button type="button"
-                                    class="subtab-button cursor-pointer py-2 px-4 border-b-2 border-transparent text-base-content/70 hover:text-base-content hover:border-base-300 font-medium text-sm transition-colors"
+                                    class="subtab-button"
                                     data-subtab="strm">
                                 <i class="bi bi-play-circle mr-2"></i>STRM
                             </button>
                             <button type="button"
-                                    class="subtab-button cursor-pointer py-2 px-4 border-b-2 border-transparent text-base-content/70 hover:text-base-content hover:border-base-300 font-medium text-sm transition-colors"
+                                    class="subtab-button"
                                     data-subtab="auth">
                                 <i class="bi bi-shield-lock mr-2"></i>Auth
                             </button>
                             <button type="button"
-                                    class="subtab-button cursor-pointer py-2 px-4 border-b-2 border-transparent text-base-content/70 hover:text-base-content hover:border-base-300 font-medium text-sm transition-colors"
+                                    class="subtab-button"
                                     data-subtab="notifications">
                                 <i class="bi bi-bell mr-2"></i>Notifications
                             </button>
@@ -637,15 +637,15 @@
 
                 <div class="tab-content hidden" data-tab-content="usenet">
                     <div class="space-y-6">
-                    <div class="border-b border-base-300 mb-6 overflow-x-auto">
-                        <nav class="subtab-nav flex min-w-max gap-2 sm:gap-4" data-subtab-group="usenet" data-subtab-accent="secondary" aria-label="usenet sub-tabs">
+                    <div class="mb-6 overflow-x-auto">
+                        <nav class="subtab-nav" data-subtab-group="usenet" data-subtab-accent="secondary" aria-label="usenet sub-tabs">
                             <button type="button"
-                                    class="subtab-button active cursor-pointer py-2 px-4 border-b-2 border-secondary text-secondary font-medium text-sm"
+                                    class="subtab-button active"
                                     data-subtab="settings">
                                 <i class="bi bi-sliders mr-2"></i>Settings
                             </button>
                             <button type="button"
-                                    class="subtab-button cursor-pointer py-2 px-4 border-b-2 border-transparent text-base-content/70 hover:text-base-content hover:border-base-300 font-medium text-sm transition-colors"
+                                    class="subtab-button"
                                     data-subtab="servers">
                                 <i class="bi bi-hdd-network mr-2"></i>Servers
                             </button>
@@ -787,15 +787,15 @@
                 <div class="tab-content hidden" data-tab-content="arrs">
                     <div class="space-y-6">
 
-                    <div class="border-b border-base-300 mb-6 overflow-x-auto">
-                        <nav class="subtab-nav flex min-w-max gap-2 sm:gap-4" data-subtab-group="arrs" data-subtab-accent="warning" aria-label="arrs sub-tabs">
+                    <div class="mb-6 overflow-x-auto">
+                        <nav class="subtab-nav" data-subtab-group="arrs" data-subtab-accent="warning" aria-label="arrs sub-tabs">
                             <button type="button"
-                                    class="subtab-button active cursor-pointer py-2 px-4 border-b-2 border-warning text-warning font-medium text-sm"
+                                    class="subtab-button active"
                                     data-subtab="applications">
                                 <i class="bi bi-app-indicator mr-2"></i>Applications
                             </button>
                             <button type="button"
-                                    class="subtab-button cursor-pointer py-2 px-4 border-b-2 border-transparent text-base-content/70 hover:text-base-content hover:border-base-300 font-medium text-sm transition-colors"
+                                    class="subtab-button"
                                     data-subtab="queue">
                                 <i class="bi bi-funnel mr-2"></i>Queue Management
                             </button>
@@ -923,20 +923,20 @@
                         </div>
 
                         <!-- Sub-tabs for mount types -->
-                        <div class="border-b border-base-300 mb-6 overflow-x-auto">
-                            <nav class="flex min-w-max gap-2 sm:gap-4" aria-label="Mount Type Tabs">
+                        <div class="mb-6 overflow-x-auto">
+                            <nav class="mount-subtab-nav" aria-label="Mount Type Tabs">
                                 <button type="button"
-                                        class="mount-subtab-button active cursor-pointer py-2 px-4 border-b-2 border-primary text-primary font-medium text-sm"
+                                        class="mount-subtab-button active"
                                         data-mount-tab="dfs">
                                     <i class="bi bi-file-earmark-code mr-2"></i>DFS
                                 </button>
                                 <button type="button"
-                                        class="mount-subtab-button cursor-pointer py-2 px-4 border-b-2 border-transparent text-base-content/70 hover:text-base-content hover:border-base-300 font-medium text-sm transition-colors"
+                                        class="mount-subtab-button"
                                         data-mount-tab="rclone">
                                     <i class="bi bi-cloud mr-2"></i>Rclone
                                 </button>
                                 <button type="button"
-                                        class="mount-subtab-button cursor-pointer py-2 px-4 border-b-2 border-transparent text-base-content/70 hover:text-base-content hover:border-base-300 font-medium text-sm transition-colors"
+                                        class="mount-subtab-button"
                                         data-mount-tab="external_rclone">
                                     <i class="bi bi-cloud mr-2"></i>External Rclone
                                 </button>
@@ -1424,20 +1424,20 @@
 
                 <div class="tab-content hidden" data-tab-content="shares">
                     <div class="space-y-6">
-                    <div class="border-b border-base-300 mb-6 overflow-x-auto">
-                        <nav class="subtab-nav flex min-w-max gap-2 sm:gap-4" data-subtab-group="shares" data-subtab-accent="primary" aria-label="shares sub-tabs">
+                    <div class="mb-6 overflow-x-auto">
+                        <nav class="subtab-nav" data-subtab-group="shares" data-subtab-accent="primary" aria-label="shares sub-tabs">
                             <button type="button"
-                                    class="subtab-button active cursor-pointer py-2 px-4 border-b-2 border-primary text-primary font-medium text-sm"
+                                    class="subtab-button active"
                                     data-subtab="nfs">
                                 <i class="bi bi-broadcast mr-2"></i>NFSv4
                             </button>
                             <button type="button"
-                                    class="subtab-button cursor-pointer py-2 px-4 border-b-2 border-transparent text-base-content/70 hover:text-base-content hover:border-base-300 font-medium text-sm transition-colors"
+                                    class="subtab-button"
                                     data-subtab="smb">
                                 <i class="bi bi-pc-display mr-2"></i>SMB
                             </button>
                             <button type="button"
-                                    class="subtab-button cursor-pointer py-2 px-4 border-b-2 border-transparent text-base-content/70 hover:text-base-content hover:border-base-300 font-medium text-sm transition-colors"
+                                    class="subtab-button"
                                     data-subtab="webdav">
                                 <i class="bi bi-hdd-network mr-2"></i>WebDAV
                             </button>
