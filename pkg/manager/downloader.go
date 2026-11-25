@@ -64,7 +64,8 @@ func NewDownloadManager(manager *Manager) *Downloader {
 	return &Downloader{
 		manager: manager,
 		logger:  manager.logger.With().Str("component", "downloader").Logger(),
-		limiter: rate.NewLimiter(rate.Inf, 0),
+		// grab waits for at most one read buffer, so the burst only has to fit that
+		limiter: rate.NewLimiter(rate.Inf, localDownloadBufferSize),
 	}
 }
 
@@ -72,24 +73,86 @@ func NewDownloadManager(manager *Manager) *Downloader {
 // also affects downloads that are already running.
 type speedLimiter struct{ limiter *rate.Limiter }
 
+// WaitN waits in steps of about 100ms of transfer and reads the limit before
+// each, so a raised or removed limit applies right away instead of after a
+// whole 1MB buffer was paid for at the old rate.
 func (s speedLimiter) WaitN(ctx context.Context, n int) error {
-	limit, err := config.ParseSize(config.Get().DownloadSpeedLimit)
-	if err != nil || limit <= 0 {
-		return nil
+	for n > 0 {
+		limit, err := config.ParseSize(config.Get().DownloadSpeedLimit)
+		if err != nil || limit <= 0 {
+			return nil
+		}
+		if s.limiter.Limit() != rate.Limit(limit) {
+			s.limiter.SetLimit(rate.Limit(limit))
+		}
+		step := min(n, max(int(limit/10), 1), localDownloadBufferSize)
+		if err := s.limiter.WaitN(ctx, step); err != nil {
+			return err
+		}
+		n -= step
 	}
-	if s.limiter.Limit() != rate.Limit(limit) {
-		s.limiter.SetLimit(rate.Limit(limit))
-		// grab waits for a whole read buffer at once, so the burst must fit one
-		s.limiter.SetBurst(max(int(limit), localDownloadBufferSize))
-	}
-	return s.limiter.WaitN(ctx, n)
+	return nil
 }
 
 func (d *Downloader) rateLimiter() grab.RateLimiter {
-	if d.limiter == nil {
-		return nil
-	}
 	return speedLimiter{d.limiter}
+}
+
+// limitedWriter applies the download speed limit to writes, for downloads that
+// do not go through grab.
+type limitedWriter struct {
+	ctx context.Context
+	w   io.Writer
+	lim grab.RateLimiter
+}
+
+func (l limitedWriter) Write(p []byte) (int, error) {
+	if err := l.lim.WaitN(l.ctx, len(p)); err != nil {
+		return 0, err
+	}
+	return l.w.Write(p)
+}
+
+// watchSpeed sets entry.Speed every second from how much SizeDownloaded grew
+// over the last five seconds. Measuring the entry makes parallel files add up
+// and a stalled download drop to zero. The returned stop waits for the watcher
+// and resets the speed; it is safe to call more than once.
+func (d *Downloader) watchSpeed(ctx context.Context, entry *storage.Entry, mu *sync.Mutex) (stop func()) {
+	ctx, cancel := context.WithCancel(ctx)
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		t := time.NewTicker(time.Second)
+		defer t.Stop()
+		var window [5]int64
+		mu.Lock()
+		last := entry.SizeDownloaded
+		mu.Unlock()
+		for i := 0; ; i++ {
+			select {
+			case <-ctx.Done():
+				return
+			case <-t.C:
+			}
+			mu.Lock()
+			window[i%len(window)] = max(entry.SizeDownloaded-last, 0)
+			last = entry.SizeDownloaded
+			var sum int64
+			for _, n := range window {
+				sum += n
+			}
+			entry.Speed = sum / int64(min(i+1, len(window)))
+			_ = d.manager.queue.Update(entry)
+			mu.Unlock()
+		}
+	}()
+	return sync.OnceFunc(func() {
+		cancel()
+		<-done
+		mu.Lock()
+		entry.Speed = 0
+		mu.Unlock()
+	})
 }
 
 func (d *Downloader) download(ctx context.Context, torrent *storage.Entry) error {
@@ -525,12 +588,13 @@ func (d *Downloader) processTorrentDownload(ctx context.Context, entry *storage.
 	entry.Progress = 0
 
 	var progressMu sync.Mutex
-	progressCallback := func(downloaded int64, speed int64) {
+	stopSpeed := d.watchSpeed(ctx, entry, &progressMu)
+	defer stopSpeed()
+	progressCallback := func(downloaded int64, _ int64) {
 		progressMu.Lock()
 		defer progressMu.Unlock()
 
 		entry.SizeDownloaded += downloaded
-		entry.Speed = speed
 		if totalSize > 0 {
 			entry.Progress = float64(entry.SizeDownloaded) / float64(totalSize)
 		}
@@ -588,6 +652,7 @@ func (d *Downloader) processTorrentDownload(ctx context.Context, entry *storage.
 	if err := p.Wait(); err != nil {
 		return fmt.Errorf("download failed: %w", err)
 	}
+	stopSpeed()
 	d.completeEntry(entry)
 	d.logger.Info().Msgf("Downloaded all files for %s", entry.Name)
 	return nil
@@ -652,6 +717,8 @@ func (d *Downloader) processUsenetDownload(ctx context.Context, entry *storage.E
 	_ = d.manager.queue.Update(entry)
 
 	var progressMu sync.Mutex
+	stopSpeed := d.watchSpeed(ctx, entry, &progressMu)
+	defer stopSpeed()
 	// Track per-file progress so we can compute the global total across all files
 	fileProgress := make(map[string]int64)
 
@@ -665,14 +732,13 @@ func (d *Downloader) processUsenetDownload(ctx context.Context, entry *storage.E
 			}
 			defer destFile.Close()
 
-			progressCallback := func(downloaded int64, speed int64) {
+			progressCallback := func(downloaded int64, _ int64) {
 				progressMu.Lock()
 				defer progressMu.Unlock()
 
 				prev := fileProgress[file.Name]
 				fileProgress[file.Name] = downloaded
 				entry.SizeDownloaded += downloaded - prev
-				entry.Speed = speed
 				if totalSize > 0 {
 					entry.Progress = float64(entry.SizeDownloaded) / float64(totalSize)
 				}
@@ -682,7 +748,7 @@ func (d *Downloader) processUsenetDownload(ctx context.Context, entry *storage.E
 				}
 			}
 
-			if err := d.manager.usenet.Download(ctx, entry.InfoHash, file.Name, destFile, progressCallback); err != nil {
+			if err := d.manager.usenet.Download(ctx, entry.InfoHash, file.Name, limitedWriter{ctx, destFile, d.rateLimiter()}, progressCallback); err != nil {
 				_ = os.Remove(destPath)
 				return fmt.Errorf("failed to download %s: %w", file.Name, err)
 			}
@@ -697,6 +763,7 @@ func (d *Downloader) processUsenetDownload(ctx context.Context, entry *storage.E
 	if err != nil {
 		return fmt.Errorf("NZB download failed: %w", err)
 	}
+	stopSpeed()
 
 	d.completeEntry(entry)
 	d.logger.Info().Msgf("Downloaded all NZB files for %s", entry.Name)
