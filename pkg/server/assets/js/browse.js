@@ -44,6 +44,7 @@ class FileBrowser {
             // Context menu
             contextMenu: document.getElementById('contextMenu'),
             contextDownload: document.getElementById('contextDownload'),
+            contextRecheck: document.getElementById('contextRecheck'),
             contextDelete: document.getElementById('contextDelete')
         };
 
@@ -406,17 +407,12 @@ class FileBrowser {
 
             const entryId = entry.path;
             const isChecked = this.state.selectedEntries.has(entryId);
+            // Opens the page-level menu; a dropdown inside the scrolling table gets cut off.
             const actionMenu = isActionable ? `
-                <div class="dropdown dropdown-end">
-                    <button type="button" tabindex="0" class="btn btn-ghost btn-xs" aria-label="Actions for ${this.escapeAttr(entry.name)}">
-                        <i class="bi bi-three-dots-vertical" aria-hidden="true"></i>
-                    </button>
-                    <ul tabindex="0" class="dropdown-content menu p-2 shadow bg-base-200 rounded-box w-56 z-50" aria-label="Actions">
-                        ${this.canCopy(entry) ? `<li><button type="button" onclick="window.fileBrowser.copyPaths(['${this.escapeJs(entry.path)}'])"><i class="bi bi-download" aria-hidden="true"></i> Download to folder</button></li>` : ''}
-                        ${entry.kind === 'entry' ? `<li><button type="button" onclick="window.fileBrowser.recheckEntry('${this.escapeJs(entry.name)}')"><i class="bi bi-search-heart" aria-hidden="true"></i> Recheck health</button></li>` : ''}
-                        ${entry.can_delete ? `<li><button type="button" onclick="window.fileBrowser.deleteTorrent('${this.escapeJs(entry.info_hash)}', '${this.escapeJs(entry.name)}')" class="text-error"><i class="bi bi-trash" aria-hidden="true"></i> Delete original item</button></li>` : ''}
-                    </ul>
-                </div>` : '<span aria-hidden="true">—</span>';
+                <button type="button" class="btn btn-ghost btn-xs" aria-label="Actions for ${this.escapeAttr(entry.name)}"
+                        onclick="window.fileBrowser.showContextMenu(event, ${this.escapeAttr(JSON.stringify(entry))});">
+                    <i class="bi bi-three-dots-vertical" aria-hidden="true"></i>
+                </button>` : '<span aria-hidden="true">—</span>';
 
             return `
                 <tr class="group hover:bg-base-200 transition-colors"
@@ -567,10 +563,18 @@ class FileBrowser {
         event.preventDefault();
         event.stopPropagation();
 
-        // Position context menu
-        this.refs.contextMenu.style.left = event.pageX + 'px';
-        this.refs.contextMenu.style.top = event.pageY + 'px';
+        // Position context menu, kept inside the viewport
         this.refs.contextMenu.classList.remove('hidden');
+        const menuWidth = this.refs.contextMenu.offsetWidth || 220;
+        this.refs.contextMenu.style.left = Math.min(event.pageX, window.scrollX + window.innerWidth - menuWidth - 8) + 'px';
+        this.refs.contextMenu.style.top = event.pageY + 'px';
+
+        if (entry.kind === 'entry') {
+            this.refs.contextRecheck.classList.remove('hidden');
+            this.refs.contextRecheck.onclick = () => { this.hideContextMenu(); this.recheckEntry(entry.name); };
+        } else {
+            this.refs.contextRecheck.classList.add('hidden');
+        }
 
         // Show/hide appropriate menu items
         if (this.canCopy(entry)) {

@@ -294,7 +294,7 @@ class TorrentDashboard {
                         </div>
                     </td>
                     <td>
-                        <span class="badge badge-ghost">${this.formatSize(torrent.size)}</span>
+                        <span class="badge badge-ghost whitespace-nowrap">${this.formatSize(torrent.size)}</span>
                     </td>
                     <td>
                         ${this.renderProgressBar(torrent.progress)}
